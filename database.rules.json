@@ -1,0 +1,48 @@
+{
+  "rules": {
+    "fakturace": {
+      ".read": "auth != null",
+      ".write": false,
+
+      "uzivatele": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && ($uid === auth.uid || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin')",
+          "role": {
+            ".validate": "root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin'"
+          }
+        }
+      },
+
+      "stavby": {
+        ".write": "auth != null"
+      },
+
+      "obdobi": {
+        "$month": {
+          ".write": "auth != null && root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin'",
+
+          "zamceno": {
+            ".write": "auth != null && (root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'ekonomka' || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin')",
+            ".validate": "newData.isBoolean()"
+          },
+          "zamkl": {
+            ".write": "auth != null && (root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'ekonomka' || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin')"
+          },
+
+          "radky": {
+            "$id": {
+              ".write": "auth != null && (root.child('fakturace/obdobi/'+$month+'/zamceno').val() !== true || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin') && (!data.child('naVedomi').exists() || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'ekonomka' || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin')",
+
+              "naVedomi": {
+                ".validate": "!newData.exists() || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'ekonomka' || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin'"
+              },
+              "predpoklad":   { ".validate": "newData.isNumber() || !newData.exists()" },
+              "odsouhlaseno": { ".validate": "newData.isNumber() || !newData.exists()" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

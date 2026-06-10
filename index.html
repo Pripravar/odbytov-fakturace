@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Odbytová fakturace</title>
+<link rel="manifest" href="manifest.json">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   ODBYTOVÁ FAKTURACE — tabulka staveb (sloupce řízené konfigurací COLUMNS)
+   ═══════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --line:#334155;
+  --txt:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8;
+  --wait1:#f59e0b; --wait2:#3b82f6; --done:#22c55e; --none:#475569;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--txt);font-size:15px;line-height:1.4;padding-bottom:env(safe-area-inset-bottom)}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:15px}
+
+#gate{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center}
+#gate h1{font-size:24px;margin:0}
+#gate p{color:var(--muted);max-width:420px;margin:0}
+.btn-google{background:#fff;color:#1f2937;border:none;border-radius:10px;padding:12px 22px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px}
+.gate-err{color:#ef4444;font-size:14px;max-width:420px}
+.gate-or{color:var(--muted);font-size:13px;margin-top:4px}
+#phoneBox{display:flex;flex-direction:column;gap:10px;align-items:center;width:280px}
+.phone-row{display:flex;width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
+.phone-row .pref{padding:11px 12px;background:var(--panel);color:var(--muted);font-weight:700;border-right:1px solid var(--line)}
+.phone-row input{flex:1;border:none;background:transparent;color:var(--txt);padding:11px 12px;font-size:16px;outline:none}
+#codeBox{display:flex;flex-direction:column;gap:10px;width:100%}
+#codeInput{border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--txt);padding:11px 12px;font-size:16px;text-align:center;letter-spacing:3px}
+.btn-phone{background:var(--accent);color:#06283d;border:none;border-radius:10px;padding:11px 16px;font-size:15px;font-weight:700}
+#recaptcha-container{min-height:0}
+
+header{position:sticky;top:0;z-index:50;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header .title{font-weight:700;font-size:17px;margin-right:auto;display:flex;align-items:center;gap:8px}
+header select,.who{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.who{display:flex;align-items:center;gap:8px;font-size:13px}
+.who .role-badge{background:var(--accent);color:#06283d;border-radius:6px;padding:1px 7px;font-weight:700;font-size:11px;text-transform:uppercase}
+.btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:14px}
+.btn:hover{background:#324158}
+.btn-primary{background:var(--accent);color:#06283d;border-color:transparent;font-weight:700}
+.btn-lock{background:#3a2d12;color:#fbbf24;border-color:#5c4715}
+
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:14px}
+.sumcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.sumcard h3{margin:0 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sumcard .big{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.sumcard .sub{font-size:12px;color:var(--muted);margin-top:3px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 12px;align-items:center}
+.toolbar input,.toolbar .chk{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+.chk{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.toolbar .grow{flex:1;min-width:160px}
+.lockbanner{margin:0 14px 12px;background:#3a2d12;border:1px solid #5c4715;color:#fbbf24;border-radius:10px;padding:10px 14px;font-size:14px}
+
+#wrap{padding:0 14px 100px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+thead th{background:var(--panel2);text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:10px 14px 10px 12px;font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:break-word;position:relative;vertical-align:top}
+thead th.num{text-align:right}
+.resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
+.resizer:hover,.resizer.drag{background:var(--accent)}
+tbody td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:hover{background:#21304a}
+tbody tr.rowlock{background:rgba(34,197,94,.05)}
+tbody tr.rowlock:hover{background:rgba(34,197,94,.09)}
+tbody tr.rowlock td.stavba{box-shadow:inset 3px 0 0 var(--done)}
+.stavba .kod{font-weight:800;color:var(--accent)}
+.stavba .nazev{color:var(--txt);font-size:14px}
+.stavba-meta{color:var(--muted);font-size:12px;margin-top:2px}
+.stavba-meta b{color:#cbd5e1;font-weight:600}
+.obj-line{color:var(--muted);font-size:12px;margin-top:3px}
+.obj-line b{color:var(--accent);font-weight:700}
+.stavba-cont{padding-left:6px}
+tbody tr.nodivider td{border-top:none}
+tbody tr.nodivider td.stavba{box-shadow:inset 2px 0 0 var(--accent)}
+.stavba-pozn{color:#fbbf24;font-size:12px;margin-top:3px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.num{text-align:right}
+.cellinput{width:100%;max-width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.amt-input{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.note-input{resize:none;overflow:hidden;min-height:38px;line-height:1.35;white-space:pre-wrap;word-break:break-word;font-size:13px}
+.cellinput::placeholder{color:#64748b;font-weight:400}
+.cellinput:disabled{opacity:.55;cursor:not-allowed}
+.stampline{font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.checktoggle{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--txt)}
+.checktoggle input{width:18px;height:18px;accent-color:var(--done)}
+.checktoggle.dis{opacity:.55;cursor:not-allowed}
+
+.badge{display:inline-block;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;text-transform:uppercase;white-space:normal;overflow-wrap:break-word}
+.b-none{background:var(--none);color:#cbd5e1}
+.b-wait1{background:var(--wait1);color:#3a2d05}
+.b-wait2{background:var(--wait2);color:#fff}
+.b-done{background:var(--done);color:#04330f}
+.yesno{display:inline-flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.yesno.undecided{border-color:var(--wait1);box-shadow:0 0 0 2px rgba(245,158,11,.25)}
+.yn{border:none;background:var(--panel2);color:var(--muted);padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.yn+.yn{border-left:1px solid var(--line)}
+.yn.yn-yes.on{background:var(--done);color:#04330f}
+.yn.yn-no.on{background:var(--nefakturovat,#ef4444);color:#fff}
+.yn:disabled{opacity:.55;cursor:not-allowed}
+tr.poznrow td{border-top:none;padding:0 12px 11px 12px;color:#fbbf24;font-size:13px;white-space:normal;cursor:pointer}
+tr.poznrow:hover td{color:#fcd34d}
+tr.poznrow .addpozn{color:var(--muted);font-style:italic}
+.vedomi-btn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:8px;padding:7px 11px;font-size:13px;white-space:nowrap}
+.vedomi-btn.on{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.5);color:#86efac;font-weight:700}
+.vedomi-btn:disabled{opacity:.55;cursor:default}
+
+.empty{text-align:center;color:var(--muted);padding:50px 20px}
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;background:var(--accent);color:#06283d;border:none;border-radius:50px;padding:14px 20px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+
+@media(max-width:680px){
+  table,thead,tbody,tr,td{display:block}
+  thead{display:none}
+  tbody tr{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:6px 4px;background:var(--panel)}
+  tbody td{border:none;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  tbody td::before{content:attr(data-l);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em;flex:0 0 auto}
+  td.stavba{flex-direction:column;align-items:flex-start}
+  td.stavba::before{display:none}
+  .amt-input,.txt-input,.date-input{width:150px}
+  .note-input{width:170px}
+}
+
+.modal-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:92vh;overflow:auto;padding:18px}
+@media(min-width:560px){.modal-bg{align-items:center}.modal{border-radius:16px}}
+.modal h2{margin:0 0 14px;font-size:18px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+.field input{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:9px;padding:10px}
+.modal-actions{display:flex;gap:10px;justify-content:space-between;margin-top:8px}
+.demo-flag{position:fixed;left:8px;bottom:8px;z-index:30;background:#3a2d12;color:#fbbf24;border:1px solid #5c4715;border-radius:6px;padding:3px 8px;font-size:11px;opacity:.85}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>🧾 Odbytová fakturace</h1>
+  <p>Sdílená tabulka měsíční fakturace staveb. Pro vstup se přihlaste firemním účtem Google.</p>
+  <button class="btn-google" id="btnLogin">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Přihlásit se přes Google
+  </button>
+
+  <div class="gate-or">nebo přes telefon (SMS)</div>
+  <div id="phoneBox">
+    <div class="phone-row"><span class="pref">+420</span><input id="phoneInput" type="tel" inputmode="numeric" placeholder="123 456 789" maxlength="11"></div>
+    <div id="recaptcha-container"></div>
+    <button class="btn-phone" id="btnSendCode">Poslat SMS kód</button>
+    <div id="codeBox" style="display:none">
+      <input id="codeInput" type="text" inputmode="numeric" placeholder="kód z SMS (6 číslic)" maxlength="6">
+      <button class="btn-phone" id="btnVerifyCode">Ověřit a přihlásit</button>
+    </div>
+  </div>
+  <div class="gate-err" id="gateErr"></div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="title">🧾 Odbytová fakturace</div>
+    <select id="monthSel" title="Měsíc"></select>
+    <button class="btn" id="btnNewMonth" title="Založit další měsíc">+ měsíc</button>
+    <button class="btn btn-danger" id="btnDelMonth" title="Smazat tento měsíc (jen admin)" style="display:none">🗑</button>
+    <button class="btn btn-lock" id="btnLock">🔒 Uzavřít</button>
+    <div class="who" id="whoBox"></div>
+  </header>
+
+  <div id="lockBanner"></div>
+  <div class="summary" id="summary"></div>
+
+  <div class="toolbar">
+    <input id="search" class="grow" placeholder="🔎 hledat stavbu…">
+    <label class="chk"><input type="checkbox" id="hideEmpty"> skrýt stavby bez částky</label>
+  </div>
+
+  <div id="wrap"></div>
+  <button class="fab" id="fab">+ Stavba</button>
+</div>
+
+<div id="modalRoot"></div>
+<div id="demoFlag"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   KONFIGURACE — DEMO mód dokud apiKey obsahuje 'PLACEHOLDER'.
+   ═══════════════════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDqUzzm9GvXVZBSaHzirCFJsvcOBKY5ouw",
+  authDomain: "odbytova-fakturace.firebaseapp.com",
+  databaseURL: "https://odbytova-fakturace-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "odbytova-fakturace",
+  storageBucket: "odbytova-fakturace.firebasestorage.app",
+  messagingSenderId: "433336764210",
+  appId: "1:433336764210:web:8f73a9343fe7b08d6a792b"
+};
+const ADMIN_EMAILS = ["arasid33@gmail.com"];   // admin (nastavuje role ostatním). Další maily doplníme dle rolí.
+
+// Seznam staveb (číselník). resi = kdo řeší soupisy, objednatel = komu se fakturuje.
+// Interní/externí ("i"/"e") podřádky se neřeší — jen hlavní stavba.
+const STAVBY_SEED = [
+  { kod:"525126001", nazev:"rekonstrukce Dobrovice Ml. Bol. kanceláře", stavbyvedouci:"Hasík", objednatel:"" },
+  { kod:"925119003", nazev:"D3 - Úsilné Hodějovice", stavbyvedouci:"Kokeš", objednatel:"ŘSD ČR" },
+  { kod:"925121008", nazev:"I/3 Olbramovice - obchvat", stavbyvedouci:"Hasík", objednatel:"ŘSD ČR" },
+  { kod:"925122019", nazev:"I/34 Lišov", stavbyvedouci:"Hasík", objednatel:"ŘSD ČR" },
+  { kod:"925123019", nazev:"D 35 - Hořice - Sadová", stavbyvedouci:"Janči", objednatel:"" },
+  { kod:"925124005", nazev:"Třebonín - Rájov", stavbyvedouci:"Kokeš", objednatel:"" },
+  { kod:"925124007", nazev:"I/20 - Pištín - České Vrbné", stavbyvedouci:"Žipek", objednatel:"ŘSD" },
+  { kod:"925124008", nazev:"D 10 - Bezděčín - Písková Lhota", stavbyvedouci:"Rohan", objednatel:"ŘSD" },
+  { kod:"925124011", nazev:"Plazy", stavbyvedouci:"Rohan", objednatel:"KSUS" },
+  { kod:"925124030", nazev:"Brandýs n. L. ČOV", stavbyvedouci:"Šťastný", objednatel:"Subterra" },
+  { kod:"925124036", nazev:"Měšice - oprava okružní křižovatky", stavbyvedouci:"Pípal", objednatel:"ŘSD s.p." },
+  { kod:"925124046", nazev:"Kunice", stavbyvedouci:"Bláha", objednatel:"KSUS+obec" },
+  { kod:"925125001", nazev:"Květnice - dostranění bodové závady", stavbyvedouci:"Mikel", objednatel:"KSUS+město" },
+  { kod:"925125002", nazev:"Kostelní Lhota - Přední Lhota", stavbyvedouci:"Fetter", objednatel:"KSUS" },
+  { kod:"925125003", nazev:"Malín - most 38-044 přes Vrchlici", stavbyvedouci:"Šťastný", objednatel:"Svoboda" },
+  { kod:"925125004", nazev:"Prčice - Mrákotice - kř. s II/121", stavbyvedouci:"Skuhra", objednatel:"" },
+  { kod:"925125006", nazev:"Mníšek pod Brdy", stavbyvedouci:"Skuhra", objednatel:"KSUS" },
+  { kod:"925125007", nazev:"Třebsko - Narysov", stavbyvedouci:"Skuhra", objednatel:"KSUS+město" },
+  { kod:"925125008", nazev:"Miličín - okružní křižovatka", stavbyvedouci:"Pípal", objednatel:"ŘSD s.p." },
+  { kod:"925125014", nazev:"Poděbrady most 611-014", stavbyvedouci:"Šťastný", objednatel:"" },
+  { kod:"925125017", nazev:"Švastalova Lhota - obnova povrchu", stavbyvedouci:"Jánský", objednatel:"Skuhra" },
+  { kod:"925125019", nazev:"Předhradí - Sokoleč", stavbyvedouci:"Šťastný", objednatel:"" },
+  { kod:"925125020", nazev:"Luka pod Medníkem", stavbyvedouci:"Klejna/Pípal", objednatel:"KSUS+město" },
+  { kod:"925125021", nazev:"Strakonice - ZTV Vinice", stavbyvedouci:"Vojta", objednatel:"Město Strakonice" },
+  { kod:"925125022", nazev:"Krušlov - oprava MK", stavbyvedouci:"253301", objednatel:"" },
+  { kod:"925125025", nazev:"Praha - oprava povrchu Vysokovská, Jeřická", stavbyvedouci:"Šourek", objednatel:"" },
+  { kod:"925125026", nazev:"Mladá Boleslav - Martinovice", stavbyvedouci:"Hasík", objednatel:"" },
+  { kod:"925125027", nazev:"Chrastiny u Písku", stavbyvedouci:"Boček", objednatel:"KSUS" },
+  { kod:"925125029", nazev:"Černolice - rekonstrukce ulic", stavbyvedouci:"Skuhra", objednatel:"KSUS" },
+  { kod:"925125030", nazev:"Zábrdovice - Dymokury", stavbyvedouci:"Fetter", objednatel:"KSUS+město" },
+  { kod:"925125032", nazev:"Mníšek pod Brdy - oprava ul. Švermova", stavbyvedouci:"Skuhra", objednatel:"město" },
+  { kod:"925125033", nazev:"Votice - Oldřichovec", stavbyvedouci:"Tůma", objednatel:"" },
+  { kod:"925125034", nazev:"Opatovice u Červených Janovic", stavbyvedouci:"Šťastný", objednatel:"FIRESTA" },
+  { kod:"925125035", nazev:"Strakonice - prodejna DEK", stavbyvedouci:"Boček", objednatel:"ESavina" },
+  { kod:"925125036", nazev:"Krušlov - dešťová kanalizace", stavbyvedouci:"Vojta", objednatel:"Městys Čestice" },
+  { kod:"925125039", nazev:"Dolní Břežany - Zbraslav", stavbyvedouci:"Pípal", objednatel:"KSUS" },
+  { kod:"925125040", nazev:"Sulice", stavbyvedouci:"Tůma", objednatel:"" },
+  { kod:"925125041", nazev:"Jabkenice - Semčice", stavbyvedouci:"Šťastný", objednatel:"" },
+  { kod:"925125046", nazev:"Praha - U Slovanky, II. etapa", stavbyvedouci:"Šťastný", objednatel:"" },
+  { kod:"925125047", nazev:"Jenštejn - soubor RD", stavbyvedouci:"Šťastný M", objednatel:"ZEMPRA" },
+  { kod:"925125048", nazev:"Jíloviště - most ev.č. 11531-1", stavbyvedouci:"Boček", objednatel:"22 MOSTY Taimar" },
+  { kod:"925125049", nazev:"Přezletice - průtah", stavbyvedouci:"Šourek", objednatel:"" },
+  { kod:"925125051", nazev:"Dobšín - křižovatka", stavbyvedouci:"Šťastný", objednatel:"KSUS" },
+  { kod:"925126001", nazev:"D4 Mníšek pod Brdy", stavbyvedouci:"Mikel", objednatel:"" },
+  { kod:"925126003", nazev:"Buk - Jerusalem", stavbyvedouci:"Skuhra", objednatel:"KSUS" },
+  { kod:"925126004", nazev:"Praha - bytový k. Pitkovické zahrady", stavbyvedouci:"Šourek", objednatel:"" },
+  { kod:"925126006", nazev:"Horažďovice - komunikace do ATRIUM", stavbyvedouci:"", objednatel:"" },
+  { kod:"925126007", nazev:"Vinoř - komunikace ke kriketu", stavbyvedouci:"Šťastný", objednatel:"MČ Praha Vinoř" },
+  { kod:"925126008", nazev:"Třebsko - oprava MK", stavbyvedouci:"Skuhra", objednatel:"" },
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SLOUPCE TABULKY — přidání dalšího sloupce = jeden řádek tady.
+   type: 'amount' | 'text' | 'date' | 'check'
+   roles: kdo smí editovat (admin smí vždy). 'ekonomka' bere na vědomí zvlášť.
+   ═══════════════════════════════════════════════════════════════════════ */
+// Práva: příprava a stavbyvedoucí mají STEJNÁ práva (zadávají vše vč. odsouhlasené částky).
+const R_EDIT     = ["priprava","stavbyvedouci","admin"];
+const R_EDIT_EKO = ["priprava","stavbyvedouci","ekonomka","admin"];   // + ekonomka (ESticon/odeslání)
+const COLUMNS = [
+  { key:"fakturujeSe", label:"Fakturuje se",            type:"yesno",  roles:R_EDIT },
+  { key:"resi",        label:"Řeší (tento měsíc)",      type:"text",   roles:R_EDIT, ph:"jméno" },
+  { key:"predpoklad",  label:"Předpoklad",              type:"amount", roles:R_EDIT },
+  { key:"odsouhlaseno",label:"Odsouhlaseno",            type:"amount", roles:R_EDIT },
+  { key:"podpisy",     label:"Podpisy soupisů – termín",type:"date",   roles:R_EDIT },
+  { key:"podpisyPozn", label:"Podpisy soupisů – pozn.", type:"note",   roles:R_EDIT, ph:"poznámka" },
+  { key:"esticon",     label:"V ESticonu",              type:"check",  roles:R_EDIT_EKO },
+  { key:"poslanoPosta",label:"Posláno na posta@rsd.cz", type:"check",  roles:R_EDIT_EKO },
+  { key:"odesilatel",  label:"Fakturaci posílá",        type:"text",   roles:R_EDIT_EKO, ph:"jméno" },
+];
+const VEDOMI_ROLES = ["ekonomka","admin"];   // kdo bere na vědomí a zamyká/odemyká řádek
+
+const DEMO = FIREBASE_CONFIG.apiKey.includes("PLACEHOLDER");
+const ROLE_LABEL = {priprava:"příprava", stavbyvedouci:"stavbyvedoucí", ekonomka:"ekonomka", admin:"admin"};
+
+/* ═══ Stav ═══ */
+let me=null, curMonth=null, monthsList=[], stavby={}, unsub=null, fdb=null;
+let monthData={zamceno:false,zamkl:null,radky:{}};
+const LS_KEY="odbyt_fakturace3_demo";
+
+const nowISO=()=>new Date().toISOString();
+const stamp=()=>({uid:me.uid,jmeno:me.jmeno,kdy:nowISO()});
+const curMonthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+const nextMonthStr=(m)=>{let[y,mo]=m.split("-").map(Number);mo++;if(mo>12){mo=1;y++;}return y+"-"+String(mo).padStart(2,"0");};
+const demoLoad=()=>{try{return JSON.parse(localStorage.getItem(LS_KEY))||{stavby:{},obdobi:{}};}catch(e){return{stavby:{},obdobi:{}};}};
+const demoSave=(d)=>localStorage.setItem(LS_KEY,JSON.stringify(d));
+
+/* ═══ Datová vrstva ═══ */
+const DB={
+  async init(){
+    if(DEMO){ const d=demoLoad();
+      STAVBY_SEED.forEach((s,i)=>{const id="s"+i;if(!d.stavby[id])d.stavby[id]={...s,poradi:i};});
+      if(!Object.keys(d.obdobi).length)d.obdobi[curMonthStr()]={zamceno:false,zamkl:null,radky:{}};
+      demoSave(d); return; }
+    firebase.initializeApp(FIREBASE_CONFIG); fdb=firebase.database();
+    STAVBY_SEED.forEach((s,i)=>fdb.ref("fakturace/stavby/s"+i).update({...s,poradi:i}));
+  },
+  async listMonths(){
+    if(DEMO)return Object.keys(demoLoad().obdobi).sort().reverse();
+    const snap=await fdb.ref("fakturace/obdobi").get();const v=snap.val()||{};const k=Object.keys(v);
+    if(!k.length){const m=curMonthStr();await fdb.ref("fakturace/obdobi/"+m).update({zamceno:false});return[m];}
+    return k.sort().reverse();
+  },
+  watchStavby(cb){
+    if(DEMO){const read=()=>cb(demoLoad().stavby||{});read();DB._stavbyRead=read;return;}
+    fdb.ref("fakturace/stavby").on("value",s=>cb(s.val()||{}));
+  },
+  watchMonth(month,cb){
+    if(unsub){unsub();unsub=null;}
+    if(DEMO){
+      const read=()=>cb(demoLoad().obdobi[month]||{zamceno:false,zamkl:null,radky:{}});read();
+      const h=(e)=>{if(e.key===LS_KEY){read();DB._stavbyRead&&DB._stavbyRead();}};
+      window.addEventListener("storage",h);DB._monthRead=read;
+      unsub=()=>{window.removeEventListener("storage",h);DB._monthRead=null;};return;
+    }
+    const ref=fdb.ref("fakturace/obdobi/"+month);
+    const handler=ref.on("value",s=>{const v=s.val()||{zamceno:false,zamkl:null,radky:{}};v.radky=v.radky||{};cb(v);});
+    unsub=()=>ref.off("value",handler);
+  },
+  async addStavba(s){const poradi=Object.keys(stavby).length;
+    if(DEMO){const d=demoLoad();d.stavby["s"+Date.now()]={...s,poradi};demoSave(d);DB._stavbyRead&&DB._stavbyRead();return;}
+    await fdb.ref("fakturace/stavby").push({...s,poradi});},
+  async updateStavba(id,patch){
+    if(DEMO){const d=demoLoad();Object.assign(d.stavby[id],patch);demoSave(d);DB._stavbyRead&&DB._stavbyRead();return;}
+    await fdb.ref("fakturace/stavby/"+id).update(patch);},
+  async removeStavba(id){
+    if(DEMO){const d=demoLoad();delete d.stavby[id];demoSave(d);DB._stavbyRead&&DB._stavbyRead();return;}
+    await fdb.ref("fakturace/stavby/"+id).remove();},
+  async setRadek(month,stavbaId,patch){
+    if(DEMO){const d=demoLoad();d.obdobi[month]=d.obdobi[month]||{zamceno:false,zamkl:null,radky:{}};
+      d.obdobi[month].radky[stavbaId]=Object.assign({},d.obdobi[month].radky[stavbaId]||{},patch);demoSave(d);DB._monthRead&&DB._monthRead();return;}
+    await fdb.ref("fakturace/obdobi/"+month+"/radky/"+stavbaId).update(patch);},
+  async setLock(month,locked){const patch={zamceno:locked,zamkl:locked?stamp():null};
+    if(DEMO){const d=demoLoad();Object.assign(d.obdobi[month],patch);demoSave(d);DB._monthRead&&DB._monthRead();return;}
+    await fdb.ref("fakturace/obdobi/"+month).update(patch);},
+  async createMonth(month){
+    if(DEMO){const d=demoLoad();if(!d.obdobi[month])d.obdobi[month]={zamceno:false,zamkl:null,radky:{}};demoSave(d);return;}
+    await fdb.ref("fakturace/obdobi/"+month).update({zamceno:false});},
+  async deleteMonth(month){
+    if(DEMO){const d=demoLoad();delete d.obdobi[month];demoSave(d);return;}
+    await fdb.ref("fakturace/obdobi/"+month).remove();}
+};
+
+/* ═══ Auth ═══ */
+function roleFor(uid,email,profiles){
+  if(profiles&&profiles[uid]&&profiles[uid].role)return profiles[uid].role;
+  if(email&&ADMIN_EMAILS.includes(email.toLowerCase()))return "admin";
+  return "priprava";
+}
+async function startAuth(){
+  if(DEMO){
+    document.getElementById("gate").style.display="none";document.getElementById("app").style.display="block";
+    document.getElementById("demoFlag").innerHTML='<div class="demo-flag">DEMO mód (localStorage) — data jen v tomto prohlížeči</div>';
+    me={uid:"demo",jmeno:"Demo uživatel",email:"demo@local",role:"admin"};await afterLogin();return;
+  }
+  const auth=firebase.auth();
+  const gateErr=t=>document.getElementById("gateErr").textContent=t||"";
+  // Google
+  document.getElementById("btnLogin").onclick=async()=>{try{gateErr("");await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());}catch(e){gateErr("Přihlášení selhalo: "+e.message);}};
+  // Telefon (SMS) — jen české číslo (+420, 9 číslic)
+  let recaptcha=null, confirmRes=null;
+  document.getElementById("btnSendCode").onclick=async()=>{
+    gateErr("");
+    let n=document.getElementById("phoneInput").value.replace(/\D/g,"").replace(/^0+/,"");
+    if(!/^\d{9}$/.test(n)){gateErr("Zadej platné české číslo: 9 číslic za +420.");return;}
+    const phone="+420"+n;
+    try{
+      if(!recaptcha){recaptcha=new firebase.auth.RecaptchaVerifier("recaptcha-container",{size:"normal"});await recaptcha.render();}
+      confirmRes=await auth.signInWithPhoneNumber(phone,recaptcha);
+      document.getElementById("codeBox").style.display="flex";
+      document.getElementById("btnSendCode").textContent="SMS odeslána ✓ (poslat znovu)";
+      gateErr("");
+    }catch(e){gateErr("Nepodařilo se odeslat SMS: "+e.message); if(recaptcha){try{recaptcha.clear();}catch(_){} recaptcha=null;}}
+  };
+  document.getElementById("btnVerifyCode").onclick=async()=>{
+    gateErr("");
+    if(!confirmRes){gateErr("Nejdřív si nech poslat SMS kód.");return;}
+    try{await confirmRes.confirm(document.getElementById("codeInput").value.trim());}
+    catch(e){gateErr("Špatný nebo prošlý kód.");}
+  };
+  auth.onAuthStateChanged(async user=>{
+    if(!user){document.getElementById("gate").style.display="flex";document.getElementById("app").style.display="none";return;}
+    const prof=(await fdb.ref("fakturace/uzivatele").get()).val()||{};
+    me={uid:user.uid,jmeno:user.displayName||user.email||user.phoneNumber||"Uživatel",email:(user.email||"").toLowerCase(),telefon:user.phoneNumber||"",role:roleFor(user.uid,user.email,prof)};
+    fdb.ref("fakturace/uzivatele/"+user.uid).update({jmeno:me.jmeno,email:me.email,telefon:me.telefon});
+    document.getElementById("gate").style.display="none";document.getElementById("app").style.display="block";await afterLogin();
+  });
+}
+async function afterLogin(){
+  DB.watchStavby(s=>{stavby=s;render();});
+  monthsList=await DB.listMonths();curMonth=monthsList[0]||curMonthStr();
+  renderWho();buildMonthSel();selectMonth(curMonth);
+}
+
+/* ═══ Helpers ═══ */
+const fmt=n=>(Number(n)||0).toLocaleString("cs-CZ")+" Kč";
+const fmtNum=n=>(Number(n)||0).toLocaleString("cs-CZ");   // 1 250 000 (po tisících, bez Kč)
+const autoGrow=el=>{el.style.height="auto";el.style.height=(el.scrollHeight+2)+"px";};
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtDate=iso=>{if(!iso)return"";const d=new Date(iso);return d.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})+" "+d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});};
+const fmtDay=s=>{if(!s)return"";const d=new Date(s);return d.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric",year:"numeric"});};
+const hasVal=v=>v!=null&&v!=="";
+const isAdmin=()=>me.role==="admin";
+const canRole=(roles)=>roles.includes(me.role)||isAdmin();
+
+function renderWho(){
+  document.getElementById("whoBox").innerHTML=
+    `<span>${esc(me.jmeno)}</span><span class="role-badge">${ROLE_LABEL[me.role]||me.role}</span>`+
+    (DEMO?roleSwitcherHtml():`<button class="btn" id="btnLogout" style="padding:4px 8px">Odhlásit</button>`);
+  if(DEMO)document.getElementById("demoRole").onchange=e=>{me.role=e.target.value;renderWho();render();};
+  else{const lo=document.getElementById("btnLogout");if(lo)lo.onclick=()=>firebase.auth().signOut();}
+}
+function roleSwitcherHtml(){return `<select id="demoRole" title="Demo: přepni roli">`+
+  Object.keys(ROLE_LABEL).map(r=>`<option value="${r}" ${me.role===r?"selected":""}>${ROLE_LABEL[r]}</option>`).join("")+`</select>`;}
+
+function buildMonthSel(){const sel=document.getElementById("monthSel");
+  if(!monthsList.includes(curMonth))monthsList.unshift(curMonth);
+  sel.innerHTML=monthsList.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");sel.value=curMonth;}
+function monthLabel(m){const[y,mo]=m.split("-");const n=["","leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];return n[+mo]+" "+y;}
+function selectMonth(m){curMonth=m;DB.watchMonth(m,d=>{monthData=d;render();});}
+
+function radekStav(r){
+  r=r||{};
+  if(r.fakturujeSe===false)return{label:"Nefakturuje se",cls:"b-none"};
+  if(r.fakturujeSe==null)return{label:"Rozhodnout: fakturovat?",cls:"b-wait1"};
+  if(r.naVedomi)return{label:"Vzato na vědomí 🔒",cls:"b-done"};
+  if(hasVal(r.odsouhlaseno))return{label:"Čeká na ekonomku",cls:"b-wait2"};
+  if(hasVal(r.predpoklad))return{label:"Čeká na odsouhlasení",cls:"b-wait1"};
+  return{label:"Zadat částku",cls:"b-wait1"};
+}
+
+function render(){
+  const bl=document.getElementById("btnLock");
+  bl.textContent=monthData.zamceno?"🔓 Odemknout":"🔒 Uzavřít";
+  bl.style.display=canRole(VEDOMI_ROLES)?"":"none";
+  bl.disabled=monthData.zamceno&&!isAdmin();
+  document.getElementById("btnDelMonth").style.display=isAdmin()?"":"none";
+  document.getElementById("fab").style.display=monthData.zamceno?"none":"";
+  const lb=document.getElementById("lockBanner");
+  if(monthData.zamceno){const z=monthData.zamkl||{};lb.innerHTML=`<div class="lockbanner">🔒 <b>Měsíc uzavřen</b> — jen čtení.${z.jmeno?` Uzavřel(a) ${esc(z.jmeno)} ${fmtDate(z.kdy)}.`:""}</div>`;}else lb.innerHTML="";
+  renderSummary();renderTable();
+}
+
+// Více objednatelů odděl znakem "+" (např. "KSUS+město") → každý objednatel = vlastní řádek.
+function objednateleOf(s){ return String(s.objednatel||"").split("+").map(t=>t.trim()).filter(Boolean); }
+
+function rowsArr(){
+  const out=[];
+  Object.entries(stavby).sort((a,b)=>(a[1].poradi||0)-(b[1].poradi||0)||(a[1].kod||"").localeCompare(b[1].kod))
+    .forEach(([id,s])=>{
+      const objs=objednateleOf(s); const list=objs.length?objs:[null];   // 1 řádek i bez objednatele
+      list.forEach((obj,idx)=>{
+        const rowKey=id+"#"+idx;
+        out.push({...s, id, rowKey, idx, first:idx===0, last:idx===list.length-1, multi:list.length>1,
+          objednatel:obj, r:(monthData.radky||{})[rowKey]||{}});
+      });
+    });
+  return out;
+}
+function renderSummary(){
+  const rows=rowsArr();
+  const sP=rows.reduce((a,x)=>a+(hasVal(x.r.predpoklad)?+x.r.predpoklad:0),0);
+  const sO=rows.reduce((a,x)=>a+(hasVal(x.r.odsouhlaseno)?+x.r.odsouhlaseno:0),0);
+  const sV=rows.reduce((a,x)=>a+(x.r.naVedomi&&hasVal(x.r.odsouhlaseno)?+x.r.odsouhlaseno:0),0);
+  const cFakt=rows.filter(x=>x.r.fakturujeSe===true).length;
+  const cNeroz=rows.filter(x=>x.r.fakturujeSe==null).length;
+  const cVed=rows.filter(x=>x.r.naVedomi).length;
+  document.getElementById("summary").innerHTML=
+    `<div class="sumcard"><h3>Předpoklad</h3><div class="big">${fmt(sP)}</div><div class="sub">${cFakt} fakturovat${cNeroz?` · <span style="color:var(--wait1)">${cNeroz} nerozhodnuto</span>`:""}</div></div>
+     <div class="sumcard"><h3>Odsouhlaseno</h3><div class="big">${fmt(sO)}</div></div>
+     <div class="sumcard"><h3>Vzato na vědomí</h3><div class="big" style="color:var(--done)">${fmt(sV)}</div><div class="sub">${cVed} z ${cFakt} hotovo</div></div>`;
+}
+
+/* ═══ Šířky sloupců (roztahovatelné jako v Excelu, uložené v localStorage) ═══ */
+const COLDEFS=[{id:"stavba",def:240},
+  ...COLUMNS.map(c=>({id:c.key,def:({amount:130,text:150,date:150,check:120,yesno:120}[c.type]||140)})),
+  {id:"ekonomka",def:160},{id:"stav",def:180}];
+let colW=(()=>{try{return JSON.parse(localStorage.getItem("odbyt_colw"))||{};}catch(e){return{};}})();
+const saveColW=()=>localStorage.setItem("odbyt_colw",JSON.stringify(colW));
+const colWidth=(id,def)=>colW[id]||def;
+function buildColgroup(){return `<colgroup>${COLDEFS.map(c=>`<col data-col="${c.id}" style="width:${colWidth(c.id,c.def)}px">`).join("")}</colgroup>`;}
+function wireResizers(){
+  const table=document.querySelector("#wrap table");if(!table)return;
+  document.querySelectorAll("#wrap thead .resizer").forEach(rz=>{
+    rz.addEventListener("mousedown",e=>{
+      e.preventDefault();e.stopPropagation();
+      const th=rz.closest("th"),id=th.dataset.col,col=table.querySelector('col[data-col="'+id+'"]');
+      const startX=e.clientX,startW=col.getBoundingClientRect().width;rz.classList.add("drag");
+      const move=ev=>{const w=Math.max(60,startW+(ev.clientX-startX));col.style.width=w+"px";colW[id]=w;};
+      const up=()=>{document.removeEventListener("mousemove",move);document.removeEventListener("mouseup",up);rz.classList.remove("drag");document.body.style.cursor="";saveColW();};
+      document.addEventListener("mousemove",move);document.addEventListener("mouseup",up);document.body.style.cursor="col-resize";
+    });
+  });
+}
+
+function renderTable(){
+  const q=document.getElementById("search").value.toLowerCase();
+  const hideEmpty=document.getElementById("hideEmpty").checked;
+  let rows=rowsArr().filter(x=>{
+    if(q&&!((x.kod+" "+x.nazev).toLowerCase().includes(q)))return false;
+    if(hideEmpty&&!hasVal(x.r.predpoklad))return false;return true;});
+  const wrap=document.getElementById("wrap");
+  if(!Object.keys(stavby).length){wrap.innerHTML=`<div class="empty">Zatím žádné stavby. Přidej je přes „+ Stavba" vpravo dole.</div>`;return;}
+  if(!rows.length){wrap.innerHTML=`<div class="empty">Nic neodpovídá filtru.</div>`;return;}
+  const rsz=`<span class="resizer"></span>`;
+  const head=`<th data-col="stavba" title="Stavba">Stavba${rsz}</th>`+
+    COLUMNS.map(c=>`<th data-col="${c.key}" class="${c.type==='amount'?'num':''}" title="${esc(c.label)}">${esc(c.label)}${rsz}</th>`).join("")+
+    `<th data-col="ekonomka" title="Ekonomka">Ekonomka${rsz}</th><th data-col="stav" title="Stav">Stav${rsz}</th>`;
+  wrap.innerHTML=`<table style="table-layout:fixed;min-width:100%">${buildColgroup()}<thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`;
+  wireTable();wireResizers();
+}
+
+function cellHtml(c,r,disabled){
+  const stampObj=r[c.key+"By"];
+  const st=stampObj?`<div class="stampline" title="${esc(stampObj.jmeno)} · ${fmtDate(stampObj.kdy)}">${esc(stampObj.jmeno)} · ${fmtDate(stampObj.kdy)}</div>`:"";
+  const dis=disabled?"disabled":"";
+  if(c.type==="amount")
+    return `<td class="num" data-l="${esc(c.label)}"><input class="cellinput amt-input" data-f="${c.key}" data-t="amount" inputmode="numeric" placeholder="—" value="${r[c.key]!=null?fmtNum(r[c.key]):""}" ${dis}>${st}</td>`;
+  if(c.type==="yesno"){const v=r[c.key];
+    return `<td data-l="${esc(c.label)}"><div class="yesno ${v==null?'undecided':''}">
+      <button class="yn yn-yes ${v===true?'on':''}" data-f="${c.key}" data-yn="yes" ${dis}>Ano</button>
+      <button class="yn yn-no ${v===false?'on':''}" data-f="${c.key}" data-yn="no" ${dis}>Ne</button>
+    </div>${st}</td>`;}
+  if(c.type==="text")
+    return `<td data-l="${esc(c.label)}"><input class="cellinput txt-input" data-f="${c.key}" data-t="text" placeholder="${esc(c.ph||"")}" value="${esc(r[c.key]??"")}" ${dis}>${st}</td>`;
+  if(c.type==="note")
+    return `<td data-l="${esc(c.label)}"><textarea class="cellinput note-input" data-f="${c.key}" data-t="note" rows="1" placeholder="${esc(c.ph||"")}" ${dis}>${esc(r[c.key]??"")}</textarea>${st}</td>`;
+  if(c.type==="date")
+    return `<td data-l="${esc(c.label)}"><input class="cellinput date-input" data-f="${c.key}" data-t="date" type="date" value="${r[c.key]??""}" ${dis}>${st}</td>`;
+  if(c.type==="check")
+    return `<td data-l="${esc(c.label)}"><label class="checktoggle ${disabled?'dis':''}"><input type="checkbox" data-f="${c.key}" data-t="check" ${r[c.key]?"checked":""} ${dis}> ${r[c.key]?"ano":"ne"}</label>${st}</td>`;
+  return `<td></td>`;
+}
+
+function rowHtml(x){
+  const r=x.r;const st=radekStav(r);
+  const monthLocked=monthData.zamceno;
+  const rowLocked=!!r.naVedomi;               // ekonomka vzala na vědomí → řádek zamčen
+  const baseDisabled=monthLocked||rowLocked;  // + per-sloupec role
+  const cells=COLUMNS.map(c=>cellHtml(c,r,baseDisabled||!canRole(c.roles))).join("");
+  const canVed=canRole(VEDOMI_ROLES)&&!monthLocked;
+  const ved=r.naVedomi;
+  const vedBtn=ved
+    ? `<button class="vedomi-btn on" data-act="vedomi" ${canVed?"":"disabled"} title="${canVed?'Klikni pro odemčení řádku':'Zamčeno ekonomkou'}">✓ Vzato 🔒</button><div class="stampline">${esc(ved.jmeno)} · ${fmtDate(ved.kdy)}</div>`
+    : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&hasVal(r.odsouhlaseno))?"":"disabled"} title="${!hasVal(r.odsouhlaseno)?'Nejdřív odsouhlasená částka':(canVed?'':'Smí jen ekonomka')}">Vzít na vědomí</button>`;
+  const colspan=COLDEFS.length;
+  const objLine=x.objednatel?`<div class="obj-line">${x.multi?"↳ ":""}Objednatel: <b>${esc(x.objednatel)}</b></div>`:(x.multi?`<div class="obj-line">↳ Objednatel: <b>—</b></div>`:"");
+  const stavbyLine=x.stavbyvedouci?`<div class="stavba-meta">Stavbyvedoucí: <b>${esc(x.stavbyvedouci)}</b></div>`:"";
+  const stavbaCell=x.first
+    ? `<div><span class="kod">${esc(x.kod)}</span> <span class="nazev">${esc(x.nazev||"")}</span></div>
+       ${objLine}
+       ${stavbyLine}`
+    : `<div class="stavba-cont">${objLine}</div>`;
+  const poznRow=x.last?`<tr class="poznrow" data-id="${x.id}"><td colspan="${colspan}">${x.poznamka?`📝 ${esc(x.poznamka)}`:`<span class="addpozn">📝 přidat poznámku ke stavbě…</span>`}</td></tr>`:"";
+  return `<tr class="${rowLocked?'rowlock':''} ${!x.first?'nodivider':''}" data-id="${x.rowKey}" data-sid="${x.id}">
+    <td class="stavba" data-l="Stavba">${stavbaCell}</td>
+    ${cells}
+    <td data-l="Ekonomka">${vedBtn}</td>
+    <td data-l="Stav"><span class="badge ${st.cls}">${st.label}</span></td>
+  </tr>${poznRow}`;
+}
+
+function wireTable(){
+  document.querySelectorAll("#wrap tr[data-id]").forEach(tr=>{
+    const id=tr.dataset.id;
+    tr.querySelectorAll("input[data-f],textarea[data-f]").forEach(inp=>{
+      if(inp.dataset.t==="note"){ autoGrow(inp); inp.addEventListener("input",()=>autoGrow(inp)); }
+      inp.addEventListener("change",()=>{
+        const f=inp.dataset.f,t=inp.dataset.t;let val;
+        if(t==="amount"){const dg=inp.value.replace(/[^\d-]/g,"");val=dg===""?null:Number(dg);}
+        else if(t==="check")val=inp.checked?true:null;
+        else val=inp.value===""?null:inp.value;
+        const patch={[f]:val};patch[f+"By"]=val==null?null:stamp();
+        if(f==="odsouhlaseno"&&val==null)patch.naVedomi=null;   // bez odsouhlasené nelze na vědomí
+        DB.setRadek(curMonth,id,patch);
+      });
+    });
+    tr.querySelectorAll(".yn[data-yn]").forEach(btn=>{
+      btn.onclick=()=>{ if(btn.disabled)return; const f=btn.dataset.f,val=btn.dataset.yn==="yes";
+        DB.setRadek(curMonth,id,{[f]:val,[f+"By"]:stamp()}); };
+    });
+    const vb=tr.querySelector('[data-act="vedomi"]');
+    if(vb)vb.onclick=()=>{const r=(monthData.radky||{})[id]||{};DB.setRadek(curMonth,id,{naVedomi:r.naVedomi?null:stamp()});};
+  });
+}
+
+/* ═══ Modál stavby ═══ */
+function closeModal(){document.getElementById("modalRoot").innerHTML="";}
+function openStavbaModal(id){
+  const edit=!!id;const s=edit?stavby[id]:{kod:"",nazev:"",stavbyvedouci:"",objednatel:"",poznamka:""};
+  document.getElementById("modalRoot").innerHTML=`
+   <div class="modal-bg"><div class="modal">
+     <h2>${edit?"Upravit stavbu":"Nová stavba"}</h2>
+     <div class="field"><label>Kód stavby</label><input id="sKod" value="${esc(s.kod)}" placeholder="např. 925125001"></div>
+     <div class="field"><label>Název</label><input id="sNazev" value="${esc(s.nazev||"")}" placeholder="Rekonstrukce…"></div>
+     <div class="field"><label>Stavbyvedoucí</label><input id="sStavby" value="${esc(s.stavbyvedouci||"")}" placeholder="jméno"></div>
+     <div class="field"><label>Objednatel <span style="text-transform:none;color:#64748b">(víc oddělte „+", např. KSUS+město → 2 řádky)</span></label><input id="sObjednatel" value="${esc(s.objednatel||"")}" placeholder="ŘSD / KSUS+město"></div>
+     <div class="field"><label>Poznámka ke stavbě</label><input id="sPozn" value="${esc(s.poznamka||"")}" placeholder="cokoliv důležitého ke stavbě"></div>
+     <div class="modal-actions">
+       <div>${edit?`<button class="btn" id="sDel" style="color:#ef4444;border-color:#5b2330">Smazat</button>`:""}</div>
+       <div style="display:flex;gap:10px"><button class="btn" id="sCancel">Zrušit</button><button class="btn btn-primary" id="sSave">${edit?"Uložit":"Přidat"}</button></div>
+     </div></div></div>`;
+  document.getElementById("sCancel").onclick=closeModal;
+  document.querySelector(".modal-bg").onclick=e=>{if(e.target.classList.contains("modal-bg"))closeModal();};
+  document.getElementById("sSave").onclick=()=>{
+    const kod=document.getElementById("sKod").value.trim(),nazev=document.getElementById("sNazev").value.trim();
+    const stavbyvedouci=document.getElementById("sStavby").value.trim(),objednatel=document.getElementById("sObjednatel").value.trim();
+    const poznamka=document.getElementById("sPozn").value.trim();
+    if(!kod){alert("Vyplň kód stavby.");return;}
+    const data={kod,nazev,stavbyvedouci,objednatel,poznamka};
+    if(edit)DB.updateStavba(id,data);else DB.addStavba(data);closeModal();};
+  const del=document.getElementById("sDel");
+  if(del)del.onclick=()=>{if(confirm("Smazat stavbu ze seznamu? (zmizí ve všech měsících)")){DB.removeStavba(id);closeModal();}};
+}
+
+function bindUI(){
+  document.getElementById("fab").onclick=()=>openStavbaModal(null);
+  document.getElementById("search").oninput=render;
+  document.getElementById("hideEmpty").onchange=render;
+  document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
+  document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());await DB.createMonth(nm);monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
+  document.getElementById("btnDelMonth").onclick=async()=>{
+    if(!isAdmin())return;
+    if(!confirm(`Smazat celý měsíc „${monthLabel(curMonth)}" včetně všech zadaných částek a stavů? Nevratné.`))return;
+    await DB.deleteMonth(curMonth);
+    monthsList=await DB.listMonths();
+    if(!monthsList.length){const m=curMonthStr();await DB.createMonth(m);monthsList=[m];}
+    curMonth=monthsList[0];buildMonthSel();selectMonth(curMonth);
+  };
+  document.getElementById("btnLock").onclick=async()=>{const lock=!monthData.zamceno;
+    if(lock&&!confirm("Uzavřít měsíc? Po uzavření už nepůjde nic měnit (jen čtení)."))return;
+    if(!lock&&!confirm("Odemknout měsíc a povolit úpravy?"))return;await DB.setLock(curMonth,lock);};
+  document.getElementById("wrap").addEventListener("click",e=>{
+    const pozn=e.target.closest("tr.poznrow");if(pozn){openStavbaModal(pozn.dataset.id);return;}
+    const cell=e.target.closest("td.stavba");if(!cell)return;const sid=cell.closest("tr").dataset.sid;if(sid)openStavbaModal(sid);});
+}
+
+(async function(){bindUI();await DB.init();await startAuth();})();
+if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js").catch(()=>{});}
+</script>
+</body>
+</html>

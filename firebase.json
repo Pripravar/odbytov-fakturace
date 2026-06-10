@@ -1,0 +1,9 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "functions": {
+    "source": "cloud-function",
+    "runtime": "nodejs20"
+  }
+}
