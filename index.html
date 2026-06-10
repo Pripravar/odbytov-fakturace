@@ -123,9 +123,31 @@ tbody tr.flagrow:hover{background:rgba(239,68,68,.11)}
 .empty{text-align:center;color:var(--muted);padding:50px 20px}
 .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;background:var(--accent);color:#06283d;border:none;border-radius:50px;padding:14px 20px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
 
-/* Mobil: stejný vzhled jako web — tabulka se sloupci a posunem do boku (#wrap má overflow-x:auto).
-   Žádné kartové přeskládání. Jen umožníme plynulé dotykové posouvání. */
-#wrap{-webkit-overflow-scrolling:touch}
+/* Rychlá odezva dotyku (bez 300ms delay / dvojkliku-zoomu) na všech tlačítkách */
+button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
+
+/* Mobil: kartové zobrazení (každý řádek = karta), BEZ vodorovného posouvání –
+   na dotyku se tím Ano/Ne ťuká spolehlivě. */
+@media(max-width:680px){
+  #wrap{overflow-x:visible}
+  table,thead,tbody,tr,td{display:block}
+  table{border:none;background:transparent}
+  thead{display:none}
+  tbody tr{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:4px 4px;background:var(--panel)}
+  tbody td{border:none;border-top:1px solid var(--line);padding:9px 12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px}
+  tbody td:first-child{border-top:none}
+  tbody td::before{content:attr(data-l);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em;flex:0 0 auto;max-width:48%}
+  tbody td .stampline{flex-basis:100%;max-width:100%;text-align:right;white-space:nowrap;overflow:visible}
+  td.stavba{flex-direction:column;align-items:flex-start;position:static;border-right:none;background:transparent}
+  td.stavba::before{display:none}
+  #wrap thead th[data-col="stavba"]{position:static}
+  .cellinput{width:150px;max-width:58%}
+  .note-input{width:175px}
+  .yn{padding:11px 18px;font-size:15px}
+  .vedomi-btn,.flag-btn{padding:11px 14px;font-size:14px}
+  tr.poznrow td{display:block}
+  tr.poznrow td::before{display:none}
+}
 
 .modal-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:92vh;overflow:auto;padding:18px}
