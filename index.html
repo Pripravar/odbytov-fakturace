@@ -61,13 +61,17 @@ header select,.who{background:var(--panel2);color:var(--txt);border:1px solid va
 .lockbanner{margin:0 14px 12px;background:#3a2d12;border:1px solid #5c4715;color:#fbbf24;border-radius:10px;padding:10px 14px;font-size:14px}
 
 #wrap{padding:0 14px 100px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px}
 thead th{background:var(--panel2);text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:10px 14px 10px 12px;font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:break-word;position:relative;vertical-align:top}
 thead th.num{text-align:right}
 .resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
 .resizer:hover,.resizer.drag{background:var(--accent)}
 tbody td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+/* Zmrazený první sloupec „Stavba" – při posunu do boku zůstává vidět, na které stavbě jsi */
+#wrap thead th[data-col="stavba"]{position:sticky;left:0;z-index:6;background:var(--panel2);border-right:2px solid var(--line)}
+#wrap td.stavba{position:sticky;left:0;z-index:4;background:var(--panel);border-right:2px solid var(--line)}
 tbody tr:hover{background:#21304a}
+tbody tr:hover td.stavba{background:#243044}
 tbody tr.rowlock{background:rgba(34,197,94,.05)}
 tbody tr.rowlock:hover{background:rgba(34,197,94,.09)}
 tbody tr.rowlock td.stavba{box-shadow:inset 3px 0 0 var(--done)}
@@ -119,17 +123,9 @@ tbody tr.flagrow:hover{background:rgba(239,68,68,.11)}
 .empty{text-align:center;color:var(--muted);padding:50px 20px}
 .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;background:var(--accent);color:#06283d;border:none;border-radius:50px;padding:14px 20px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
 
-@media(max-width:680px){
-  table,thead,tbody,tr,td{display:block}
-  thead{display:none}
-  tbody tr{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:6px 4px;background:var(--panel)}
-  tbody td{border:none;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-  tbody td::before{content:attr(data-l);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em;flex:0 0 auto}
-  td.stavba{flex-direction:column;align-items:flex-start}
-  td.stavba::before{display:none}
-  .amt-input,.txt-input,.date-input{width:150px}
-  .note-input{width:170px}
-}
+/* Mobil: stejný vzhled jako web — tabulka se sloupci a posunem do boku (#wrap má overflow-x:auto).
+   Žádné kartové přeskládání. Jen umožníme plynulé dotykové posouvání. */
+#wrap{-webkit-overflow-scrolling:touch}
 
 .modal-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:92vh;overflow:auto;padding:18px}
@@ -275,17 +271,19 @@ const STAVBY_SEED = [
    roles: kdo smí editovat (admin smí vždy). 'ekonomka' bere na vědomí zvlášť.
    ═══════════════════════════════════════════════════════════════════════ */
 // Práva: příprava a stavbyvedoucí mají STEJNÁ práva (zadávají vše vč. odsouhlasené částky).
-const R_EDIT     = ["priprava","stavbyvedouci","admin"];
-const R_EDIT_EKO = ["priprava","stavbyvedouci","ekonomka","admin"];   // + ekonomka (ESticon/odeslání)
+// Příprava, stavbyvedoucí I ekonom mají STEJNÁ práva editace všech sloupců.
+// Ekonom má navíc JEN zámek řádku (vzít na vědomí / odemknout) — viz VEDOMI_ROLES. Admin vše.
+const R_EDIT     = ["priprava","stavbyvedouci","ekonomka","admin"];
+const R_EDIT_EKO = R_EDIT;
 const COLUMNS = [
-  { key:"fakturujeSe", label:"Fakturuje se",            type:"yesno",  roles:R_EDIT },
+  { key:"fakturujeSe", label:"Fakturuje se",            type:"yesno",  roles:R_EDIT, req:true },
   { key:"resi",        label:"Řeší (tento měsíc)",      type:"text",   roles:R_EDIT, ph:"jméno" },
   { key:"predpoklad",  label:"Předpoklad",              type:"amount", roles:R_EDIT },
   { key:"odsouhlaseno",label:"Odsouhlaseno",            type:"amount", roles:R_EDIT },
   { key:"podpisy",     label:"Podpisy soupisů – termín",type:"date",   roles:R_EDIT },
   { key:"podpisyPozn", label:"Podpisy soupisů – pozn.", type:"note",   roles:R_EDIT, ph:"poznámka" },
-  { key:"esticon",     label:"V ESticonu",              type:"check",  roles:R_EDIT_EKO },
-  { key:"poslanoPosta",label:"Posláno na posta@rsd.cz", type:"check",  roles:R_EDIT_EKO },
+  { key:"esticon",     label:"V ESticonu",              type:"yesno",  roles:R_EDIT_EKO },
+  { key:"poslanoPosta",label:"Posláno na posta@rsd.cz", type:"yesno",  roles:R_EDIT_EKO },
   { key:"odesilatel",  label:"Fakturaci posílá",        type:"text",   roles:R_EDIT_EKO, ph:"jméno" },
 ];
 const VEDOMI_ROLES = ["ekonomka","admin"];   // kdo bere na vědomí a zamyká/odemyká řádek
@@ -412,9 +410,33 @@ async function startAuth(){
   auth.onAuthStateChanged(async user=>{
     if(!user){document.getElementById("gate").style.display="flex";document.getElementById("app").style.display="none";return;}
     const prof=(await fdb.ref("fakturace/uzivatele").get()).val()||{};
-    me={uid:user.uid,jmeno:user.displayName||user.email||user.phoneNumber||"Uživatel",email:(user.email||"").toLowerCase(),telefon:user.phoneNumber||"",role:roleFor(user.uid,user.email,prof)};
+    const existing=prof[user.uid]||{};
+    const isPhone=!!user.phoneNumber && !user.email;
+    document.getElementById("gate").style.display="none";document.getElementById("app").style.display="block";
+    // jméno: Google → displayName; telefon → uložené jméno, jinak se na něj zeptáme (povinné)
+    let jmeno=user.displayName||user.email||((existing.jmeno&&existing.jmeno!==user.phoneNumber)?existing.jmeno:"");
+    if(isPhone && !jmeno){ jmeno=await askName(); }
+    if(!jmeno) jmeno=user.phoneNumber||user.email||"Uživatel";
+    me={uid:user.uid,jmeno,email:(user.email||"").toLowerCase(),telefon:user.phoneNumber||"",role:roleFor(user.uid,user.email,prof)};
     fdb.ref("fakturace/uzivatele/"+user.uid).update({jmeno:me.jmeno,email:me.email,telefon:me.telefon});
-    document.getElementById("gate").style.display="none";document.getElementById("app").style.display="block";await afterLogin();
+    await afterLogin();
+  });
+}
+// Povinné zadání jména pro přihlášení telefonem (vrátí zadané jméno).
+function askName(){
+  return new Promise(resolve=>{
+    document.getElementById("modalRoot").innerHTML=`
+     <div class="modal-bg"><div class="modal">
+       <h2>Vítej! Doplň své jméno</h2>
+       <div class="hint">Přihlásil(a) ses telefonem. Zadej jméno a příjmení, ať tě ostatní v tabulce poznají (ukáže se i s číslem).</div>
+       <div class="field"><label>Jméno a příjmení</label><input id="nmInput" placeholder="Jan Novák" autocomplete="name"></div>
+       <div class="modal-actions"><span></span><button class="btn btn-primary" id="nmSave">Uložit a pokračovat</button></div>
+     </div></div>`;
+    const inp=document.getElementById("nmInput");
+    const save=()=>{const v=inp.value.trim();if(v.length<3){inp.style.borderColor="#ef4444";inp.focus();return;}closeModal();resolve(v);};
+    document.getElementById("nmSave").onclick=save;
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter")save();});
+    setTimeout(()=>inp.focus(),50);
   });
 }
 async function afterLogin(){
@@ -551,7 +573,7 @@ function cellHtml(c,r,disabled){
   if(c.type==="amount")
     return `<td class="num" data-l="${esc(c.label)}"><input class="cellinput amt-input" data-f="${c.key}" data-t="amount" inputmode="numeric" placeholder="—" value="${r[c.key]!=null?fmtNum(r[c.key]):""}" ${dis}>${st}</td>`;
   if(c.type==="yesno"){const v=r[c.key];
-    return `<td data-l="${esc(c.label)}"><div class="yesno ${v==null?'undecided':''}">
+    return `<td data-l="${esc(c.label)}"><div class="yesno ${(v==null&&c.req)?'undecided':''}">
       <button class="yn yn-yes ${v===true?'on':''}" data-f="${c.key}" data-yn="yes" ${dis}>Ano</button>
       <button class="yn yn-no ${v===false?'on':''}" data-f="${c.key}" data-yn="no" ${dis}>Ne</button>
     </div>${st}</td>`;}
@@ -570,16 +592,16 @@ function rowHtml(x){
   const r=x.r;const st=radekStav(r);
   const monthLocked=monthData.zamceno;
   const rowLocked=!!r.naVedomi;               // ekonomka vzala na vědomí → řádek zamčen
-  const baseDisabled=monthLocked||rowLocked;  // + per-sloupec role
+  const baseDisabled=(monthLocked||rowLocked)&&!isAdmin();  // admin smí vše; + per-sloupec role
   const cells=COLUMNS.map(c=>cellHtml(c,r,baseDisabled||!canRole(c.roles))).join("");
-  const canVed=canRole(VEDOMI_ROLES)&&!monthLocked;
+  const canVed=canRole(VEDOMI_ROLES)&&(!monthLocked||isAdmin());
   const ved=r.naVedomi;
   const vedBtn=ved
     ? `<button class="vedomi-btn on" data-act="vedomi" ${canVed?"":"disabled"} title="${canVed?'Klikni pro odemčení řádku':'Zamčeno ekonomkou'}">✓ Vzato 🔒</button><div class="stampline">${esc(ved.jmeno)} · ${fmtDate(ved.kdy)}</div>`
     : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&hasVal(r.odsouhlaseno))?"":"disabled"} title="${!hasVal(r.odsouhlaseno)?'Nejdřív odsouhlasená částka':(canVed?'':'Smí jen ekonomka')}">Vzít na vědomí</button>`;
   // Příznak „Bude změna" — příprava/stavbyvedoucí ho smí zaškrtnout I po vzetí na vědomí (zamčení),
   // aby upozornili, že se odsouhlasená částka ještě změní. Funguje nezávisle na zámku řádku.
-  const canFlag=canRole(R_EDIT)&&!monthLocked;
+  const canFlag=canRole(R_EDIT)&&(!monthLocked||isAdmin());
   const zmena=r.budeZmena;
   const flagBadge=zmena?`<div class="badge b-zmena" title="${r.budeZmenaBy?esc(r.budeZmenaBy.jmeno)+' · '+fmtDate(r.budeZmenaBy.kdy):''}">⚠️ BUDE ZMĚNA</div>`:"";
   const flagBtn=canFlag?`<button class="flag-btn ${zmena?'on':''}" data-act="zmena">${zmena?'✓ zrušit příznak':'⚠️ Bude změna'}</button>`:"";
