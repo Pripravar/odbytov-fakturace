@@ -625,7 +625,7 @@ function rowHtml(x){
   // aby upozornili, že se odsouhlasená částka ještě změní. Funguje nezávisle na zámku řádku.
   const canFlag=canRole(R_EDIT)&&(!monthLocked||isAdmin());
   const zmena=r.budeZmena;
-  const flagBadge=zmena?`<div class="badge b-zmena" title="${r.budeZmenaBy?esc(r.budeZmenaBy.jmeno)+' · '+fmtDate(r.budeZmenaBy.kdy):''}">⚠️ BUDE ZMĚNA</div>`:"";
+  const flagBadge=zmena?`<div class="badge b-zmena">⚠️ BUDE ZMĚNA</div>${r.budeZmenaBy?`<div class="stampline">${esc(r.budeZmenaBy.jmeno)} · ${fmtDate(r.budeZmenaBy.kdy)}</div>`:""}`:"";
   const flagBtn=canFlag?`<button class="flag-btn ${zmena?'on':''}" data-act="zmena">${zmena?'✓ zrušit příznak':'⚠️ Bude změna'}</button>`:"";
   const colspan=COLDEFS.length;
   const objLine=x.objednatel?`<div class="obj-line">${x.multi?"↳ ":""}Objednatel: <b>${esc(x.objednatel)}</b></div>`:(x.multi?`<div class="obj-line">↳ Objednatel: <b>—</b></div>`:"");
