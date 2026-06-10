@@ -134,6 +134,11 @@ tr.poznrow .addpozn{color:var(--muted);font-style:italic}
 .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
 .field input{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:9px;padding:10px}
 .modal-actions{display:flex;gap:10px;justify-content:space-between;margin-top:8px}
+.hint{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4}
+.user-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.user-info{flex:1;min-width:0}
+.user-sub{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.user-role{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:14px}
 .demo-flag{position:fixed;left:8px;bottom:8px;z-index:30;background:#3a2d12;color:#fbbf24;border:1px solid #5c4715;border-radius:6px;padding:3px 8px;font-size:11px;opacity:.85}
 </style>
 </head>
@@ -168,6 +173,7 @@ tr.poznrow .addpozn{color:var(--muted);font-style:italic}
     <button class="btn" id="btnNewMonth" title="Založit další měsíc">+ měsíc</button>
     <button class="btn btn-danger" id="btnDelMonth" title="Smazat tento měsíc (jen admin)" style="display:none">🗑</button>
     <button class="btn btn-lock" id="btnLock">🔒 Uzavřít</button>
+    <button class="btn" id="btnUsers" title="Správa uživatelů a rolí (jen admin)" style="display:none">👥 Uživatelé</button>
     <div class="who" id="whoBox"></div>
   </header>
 
@@ -283,7 +289,7 @@ const DEMO = FIREBASE_CONFIG.apiKey.includes("PLACEHOLDER");
 const ROLE_LABEL = {priprava:"příprava", stavbyvedouci:"stavbyvedoucí", ekonomka:"ekonomka", admin:"admin"};
 
 /* ═══ Stav ═══ */
-let me=null, curMonth=null, monthsList=[], stavby={}, unsub=null, fdb=null;
+let me=null, curMonth=null, monthsList=[], stavby={}, users={}, unsub=null, fdb=null;
 let monthData={zamceno:false,zamkl:null,radky:{}};
 const LS_KEY="odbyt_fakturace3_demo";
 
@@ -308,12 +314,22 @@ const DB={
   async listMonths(){
     if(DEMO)return Object.keys(demoLoad().obdobi).sort().reverse();
     const snap=await fdb.ref("fakturace/obdobi").get();const v=snap.val()||{};const k=Object.keys(v);
-    if(!k.length){const m=curMonthStr();await fdb.ref("fakturace/obdobi/"+m).update({zamceno:false});return[m];}
+    if(!k.length){const m=curMonthStr();
+      try{await fdb.ref("fakturace/obdobi/"+m).update({zamceno:false});}catch(e){/* zakládá jen admin – nevadí, měsíc se zobrazí i tak */}
+      return[m];}
     return k.sort().reverse();
   },
   watchStavby(cb){
     if(DEMO){const read=()=>cb(demoLoad().stavby||{});read();DB._stavbyRead=read;return;}
     fdb.ref("fakturace/stavby").on("value",s=>cb(s.val()||{}));
+  },
+  watchUsers(cb){
+    if(DEMO){cb({demo:{jmeno:me.jmeno,email:me.email,role:me.role}});return;}
+    fdb.ref("fakturace/uzivatele").on("value",s=>cb(s.val()||{}));
+  },
+  async setUserRole(uid,role){
+    if(DEMO)return;
+    await fdb.ref("fakturace/uzivatele/"+uid+"/role").set(role);
   },
   watchMonth(month,cb){
     if(unsub){unsub();unsub=null;}
@@ -398,6 +414,7 @@ async function startAuth(){
 }
 async function afterLogin(){
   DB.watchStavby(s=>{stavby=s;render();});
+  DB.watchUsers(u=>{users=u;renderUsersList();});
   monthsList=await DB.listMonths();curMonth=monthsList[0]||curMonthStr();
   renderWho();buildMonthSel();selectMonth(curMonth);
 }
@@ -445,6 +462,8 @@ function render(){
   bl.style.display=canRole(VEDOMI_ROLES)?"":"none";
   bl.disabled=monthData.zamceno&&!isAdmin();
   document.getElementById("btnDelMonth").style.display=isAdmin()?"":"none";
+  document.getElementById("btnNewMonth").style.display=(isAdmin()||me.role==="ekonomka")?"":"none";
+  document.getElementById("btnUsers").style.display=isAdmin()?"":"none";
   document.getElementById("fab").style.display=monthData.zamceno?"none":"";
   const lb=document.getElementById("lockBanner");
   if(monthData.zamceno){const z=monthData.zamkl||{};lb.innerHTML=`<div class="lockbanner">🔒 <b>Měsíc uzavřen</b> — jen čtení.${z.jmeno?` Uzavřel(a) ${esc(z.jmeno)} ${fmtDate(z.kdy)}.`:""}</div>`;}else lb.innerHTML="";
@@ -594,6 +613,34 @@ function wireTable(){
   });
 }
 
+/* ═══ Modál uživatelů / rolí (admin) ═══ */
+function openUsersModal(){
+  document.getElementById("modalRoot").innerHTML=`
+   <div class="modal-bg"><div class="modal" id="usersModal">
+     <h2>👥 Uživatelé a role</h2>
+     <div class="hint">Přiřaď každému přihlášenému jeho roli — uloží se hned. (příprava a stavbyvedoucí mají stejná práva)</div>
+     <div id="usersList"></div>
+     <div class="modal-actions"><span></span><button class="btn btn-primary" id="uClose">Hotovo</button></div>
+   </div></div>`;
+  document.getElementById("uClose").onclick=closeModal;
+  document.querySelector(".modal-bg").onclick=e=>{if(e.target.classList.contains("modal-bg"))closeModal();};
+  renderUsersList();
+}
+function renderUsersList(){
+  const box=document.getElementById("usersList");if(!box)return;
+  const entries=Object.entries(users||{});
+  if(!entries.length){box.innerHTML=`<div class="hint">Zatím se nikdo nepřihlásil.</div>`;return;}
+  box.innerHTML=entries.map(([uid,u])=>{
+    const ident=u.email||u.telefon||uid;
+    const opts=Object.keys(ROLE_LABEL).map(r=>`<option value="${r}" ${(u.role||'priprava')===r?'selected':''}>${ROLE_LABEL[r]}</option>`).join("");
+    return `<div class="user-row">
+      <div class="user-info"><b>${esc(u.jmeno||ident)}</b><div class="user-sub">${esc(ident)}${u.role?'':' · <span style="color:var(--wait1)">role nenastavena</span>'}</div></div>
+      <select class="user-role" data-uid="${uid}">${opts}</select>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".user-role").forEach(sel=>{ sel.onchange=()=>DB.setUserRole(sel.dataset.uid,sel.value); });
+}
+
 /* ═══ Modál stavby ═══ */
 function closeModal(){document.getElementById("modalRoot").innerHTML="";}
 function openStavbaModal(id){
@@ -628,7 +675,8 @@ function bindUI(){
   document.getElementById("search").oninput=render;
   document.getElementById("hideEmpty").onchange=render;
   document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
-  document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());await DB.createMonth(nm);monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
+  document.getElementById("btnUsers").onclick=openUsersModal;
+  document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());try{await DB.createMonth(nm);}catch(e){alert("Měsíc smí založit jen admin/ekonomka.");return;}monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
   document.getElementById("btnDelMonth").onclick=async()=>{
     if(!isAdmin())return;
     if(!confirm(`Smazat celý měsíc „${monthLabel(curMonth)}" včetně všech zadaných částek a stavů? Nevratné.`))return;
