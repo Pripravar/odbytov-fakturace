@@ -302,7 +302,8 @@ const DB={
       if(!Object.keys(d.obdobi).length)d.obdobi[curMonthStr()]={zamceno:false,zamkl:null,radky:{}};
       demoSave(d); return; }
     firebase.initializeApp(FIREBASE_CONFIG); fdb=firebase.database();
-    STAVBY_SEED.forEach((s,i)=>fdb.ref("fakturace/stavby/s"+i).update({...s,poradi:i}));
+    // Pozn.: STAVBY_SEED se do živé DB NEnahrává z appky (zápis před přihlášením pravidla odmítnou
+    // a navíc by to přepisovalo úpravy). Seznam staveb je nahrán jednorázově do DB přes Firebase CLI.
   },
   async listMonths(){
     if(DEMO)return Object.keys(demoLoad().obdobi).sort().reverse();
