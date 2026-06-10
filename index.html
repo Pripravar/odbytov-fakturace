@@ -206,6 +206,7 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
   <div class="toolbar">
     <input id="search" class="grow" placeholder="🔎 hledat stavbu…">
     <label class="chk"><input type="checkbox" id="hideEmpty"> skrýt stavby bez částky</label>
+    <label class="chk"><input type="checkbox" id="hideNefakt"> skrýt nefakturované (Ne)</label>
   </div>
 
   <div id="wrap"></div>
@@ -591,9 +592,12 @@ function wireResizers(){
 function renderTable(){
   const q=document.getElementById("search").value.toLowerCase();
   const hideEmpty=document.getElementById("hideEmpty").checked;
+  const hideNefakt=document.getElementById("hideNefakt").checked;
   let rows=rowsArr().filter(x=>{
     if(q&&!((x.kod+" "+x.nazev).toLowerCase().includes(q)))return false;
-    if(hideEmpty&&!hasVal(x.r.predpoklad))return false;return true;});
+    if(hideEmpty&&!hasVal(x.r.predpoklad))return false;
+    if(hideNefakt&&x.r.fakturujeSe===false)return false;
+    return true;});
   const wrap=document.getElementById("wrap");
   if(!Object.keys(stavby).length){wrap.innerHTML=`<div class="empty">Zatím žádné stavby. Přidej je přes „+ Stavba" vpravo dole.</div>`;return;}
   if(!rows.length){wrap.innerHTML=`<div class="empty">Nic neodpovídá filtru.</div>`;return;}
@@ -748,6 +752,7 @@ function bindUI(){
   document.getElementById("fab").onclick=()=>openStavbaModal(null);
   document.getElementById("search").oninput=render;
   document.getElementById("hideEmpty").onchange=render;
+  document.getElementById("hideNefakt").onchange=render;
   document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
   document.getElementById("btnUsers").onclick=openUsersModal;
   document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());try{await DB.createMonth(nm);}catch(e){alert("Měsíc smí založit jen admin/ekonomka.");return;}monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
