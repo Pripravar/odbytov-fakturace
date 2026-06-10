@@ -37,6 +37,13 @@
               "naVedomi": {
                 ".validate": "!newData.exists() || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'ekonomka' || root.child('fakturace/uzivatele/'+auth.uid+'/role').val() === 'admin'"
               },
+              "budeZmena": {
+                ".write": "auth != null && root.child('fakturace/obdobi/'+$month+'/zamceno').val() !== true",
+                ".validate": "newData.isBoolean() || !newData.exists()"
+              },
+              "budeZmenaBy": {
+                ".write": "auth != null && root.child('fakturace/obdobi/'+$month+'/zamceno').val() !== true"
+              },
               "predpoklad":   { ".validate": "newData.isNumber() || !newData.exists()" },
               "odsouhlaseno": { ".validate": "newData.isNumber() || !newData.exists()" }
             }

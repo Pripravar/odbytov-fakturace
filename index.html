@@ -110,6 +110,11 @@ tr.poznrow .addpozn{color:var(--muted);font-style:italic}
 .vedomi-btn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:8px;padding:7px 11px;font-size:13px;white-space:nowrap}
 .vedomi-btn.on{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.5);color:#86efac;font-weight:700}
 .vedomi-btn:disabled{opacity:.55;cursor:default}
+.b-zmena{background:var(--nefakturovat);color:#fff;margin-top:6px}
+.flag-btn{display:block;margin-top:6px;background:var(--panel2);color:#fca5a5;border:1px solid #5b2330;border-radius:8px;padding:5px 9px;font-size:12px;white-space:nowrap}
+.flag-btn.on{background:rgba(239,68,68,.2);border-color:var(--nefakturovat);color:#fecaca;font-weight:700}
+tbody tr.flagrow{background:rgba(239,68,68,.07)}
+tbody tr.flagrow:hover{background:rgba(239,68,68,.11)}
 
 .empty{text-align:center;color:var(--muted);padding:50px 20px}
 .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;background:var(--accent);color:#06283d;border:none;border-radius:50px;padding:14px 20px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
@@ -572,6 +577,12 @@ function rowHtml(x){
   const vedBtn=ved
     ? `<button class="vedomi-btn on" data-act="vedomi" ${canVed?"":"disabled"} title="${canVed?'Klikni pro odemčení řádku':'Zamčeno ekonomkou'}">✓ Vzato 🔒</button><div class="stampline">${esc(ved.jmeno)} · ${fmtDate(ved.kdy)}</div>`
     : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&hasVal(r.odsouhlaseno))?"":"disabled"} title="${!hasVal(r.odsouhlaseno)?'Nejdřív odsouhlasená částka':(canVed?'':'Smí jen ekonomka')}">Vzít na vědomí</button>`;
+  // Příznak „Bude změna" — příprava/stavbyvedoucí ho smí zaškrtnout I po vzetí na vědomí (zamčení),
+  // aby upozornili, že se odsouhlasená částka ještě změní. Funguje nezávisle na zámku řádku.
+  const canFlag=canRole(R_EDIT)&&!monthLocked;
+  const zmena=r.budeZmena;
+  const flagBadge=zmena?`<div class="badge b-zmena" title="${r.budeZmenaBy?esc(r.budeZmenaBy.jmeno)+' · '+fmtDate(r.budeZmenaBy.kdy):''}">⚠️ BUDE ZMĚNA</div>`:"";
+  const flagBtn=canFlag?`<button class="flag-btn ${zmena?'on':''}" data-act="zmena">${zmena?'✓ zrušit příznak':'⚠️ Bude změna'}</button>`:"";
   const colspan=COLDEFS.length;
   const objLine=x.objednatel?`<div class="obj-line">${x.multi?"↳ ":""}Objednatel: <b>${esc(x.objednatel)}</b></div>`:(x.multi?`<div class="obj-line">↳ Objednatel: <b>—</b></div>`:"");
   const stavbyLine=x.stavbyvedouci?`<div class="stavba-meta">Stavbyvedoucí: <b>${esc(x.stavbyvedouci)}</b></div>`:"";
@@ -581,11 +592,11 @@ function rowHtml(x){
        ${stavbyLine}`
     : `<div class="stavba-cont">${objLine}</div>`;
   const poznRow=x.last?`<tr class="poznrow" data-id="${x.id}"><td colspan="${colspan}">${x.poznamka?`📝 ${esc(x.poznamka)}`:`<span class="addpozn">📝 přidat poznámku ke stavbě…</span>`}</td></tr>`:"";
-  return `<tr class="${rowLocked?'rowlock':''} ${!x.first?'nodivider':''}" data-id="${x.rowKey}" data-sid="${x.id}">
+  return `<tr class="${rowLocked?'rowlock':''} ${!x.first?'nodivider':''} ${zmena?'flagrow':''}" data-id="${x.rowKey}" data-sid="${x.id}">
     <td class="stavba" data-l="Stavba">${stavbaCell}</td>
     ${cells}
     <td data-l="Ekonomka">${vedBtn}</td>
-    <td data-l="Stav"><span class="badge ${st.cls}">${st.label}</span></td>
+    <td data-l="Stav"><span class="badge ${st.cls}">${st.label}</span>${flagBadge}${flagBtn}</td>
   </tr>${poznRow}`;
 }
 
@@ -610,6 +621,8 @@ function wireTable(){
     });
     const vb=tr.querySelector('[data-act="vedomi"]');
     if(vb)vb.onclick=()=>{const r=(monthData.radky||{})[id]||{};DB.setRadek(curMonth,id,{naVedomi:r.naVedomi?null:stamp()});};
+    const fb=tr.querySelector('[data-act="zmena"]');
+    if(fb)fb.onclick=()=>{const r=(monthData.radky||{})[id]||{};DB.setRadek(curMonth,id,{budeZmena:r.budeZmena?null:true,budeZmenaBy:r.budeZmena?null:stamp()});};
   });
 }
 
