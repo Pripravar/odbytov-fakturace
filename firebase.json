@@ -5,5 +5,17 @@
   "functions": {
     "source": "cloud-function",
     "runtime": "nodejs20"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "cloud-function/**",
+      "odbytov-fakturace/**",
+      "database.rules.json",
+      "README.md"
+    ]
   }
 }
