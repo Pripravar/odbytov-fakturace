@@ -406,8 +406,22 @@ async function startAuth(){
   }
   const auth=firebase.auth();
   const gateErr=t=>document.getElementById("gateErr").textContent=t||"";
-  // Google
-  document.getElementById("btnLogin").onclick=async()=>{try{gateErr("");await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());}catch(e){gateErr("Přihlášení selhalo: "+e.message);}};
+  // Když se vracíme z přesměrovaného přihlášení (mobil), případnou chybu ukážeme.
+  auth.getRedirectResult().catch(e=>{ if(e&&e.message) gateErr("Přihlášení selhalo: "+e.message); });
+  // Google — na mobilu PŘESMĚROVÁNÍ (popup se na telefonu často zasekne), na desktopu popup.
+  const isMobile=/Android|iPhone|iPad|iPod|Mobile|Silk|Opera Mini/i.test(navigator.userAgent);
+  document.getElementById("btnLogin").onclick=async()=>{
+    gateErr(""); const provider=new firebase.auth.GoogleAuthProvider();
+    try{
+      if(isMobile){ await auth.signInWithRedirect(provider); }
+      else{ await auth.signInWithPopup(provider); }
+    }catch(e){
+      const c=e&&e.code;
+      if(c==="auth/popup-blocked"||c==="auth/cancelled-popup-request"||c==="auth/popup-closed-by-user"||c==="auth/operation-not-supported-in-this-environment"){
+        try{ await auth.signInWithRedirect(provider); }catch(e2){ gateErr("Přihlášení selhalo: "+e2.message); }
+      } else { gateErr("Přihlášení selhalo: "+(e&&e.message||e)); }
+    }
+  };
   // Telefon (SMS) — jen české číslo (+420, 9 číslic)
   let recaptcha=null, confirmRes=null;
   document.getElementById("btnSendCode").onclick=async()=>{
