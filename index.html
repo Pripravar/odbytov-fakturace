@@ -410,11 +410,14 @@ async function startAuth(){
   auth.getRedirectResult().catch(e=>{ if(e&&e.message) gateErr("Přihlášení selhalo: "+e.message); });
   // Google — na mobilu PŘESMĚROVÁNÍ (popup se na telefonu často zasekne), na desktopu popup.
   const isMobile=/Android|iPhone|iPad|iPod|Mobile|Silk|Opera Mini/i.test(navigator.userAgent);
+  // Popup funguje spolehlivě jen na Firebase doméně (first-party). Na github.io a na mobilu
+  // použij přesměrování – popup tam blokují cookies třetích stran (bílé okno).
+  const onFbDomain=/(^|\.)firebaseapp\.com$|(^|\.)web\.app$/i.test(location.hostname);
   document.getElementById("btnLogin").onclick=async()=>{
     gateErr(""); const provider=new firebase.auth.GoogleAuthProvider();
     try{
-      if(isMobile){ await auth.signInWithRedirect(provider); }
-      else{ await auth.signInWithPopup(provider); }
+      if(onFbDomain && !isMobile){ await auth.signInWithPopup(provider); }
+      else{ await auth.signInWithRedirect(provider); }
     }catch(e){
       const c=e&&e.code;
       if(c==="auth/popup-blocked"||c==="auth/cancelled-popup-request"||c==="auth/popup-closed-by-user"||c==="auth/operation-not-supported-in-this-environment"){
@@ -542,7 +545,7 @@ function rowsArr(){
     .forEach(([id,s])=>{
       const objs=objednateleOf(s); const list=objs.length?objs:[null];   // 1 řádek i bez objednatele
       list.forEach((obj,idx)=>{
-        const rowKey=id+"#"+idx;
+        const rowKey=id+"__"+idx;   // POZOR: oddělovač NESMÍ být '#' (Firebase zakazuje # . $ [ ] v cestě)
         out.push({...s, id, rowKey, idx, first:idx===0, last:idx===list.length-1, multi:list.length>1,
           objednatel:obj, r:(monthData.radky||{})[rowKey]||{}});
       });
