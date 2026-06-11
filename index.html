@@ -690,7 +690,7 @@ function rowHtml(x){
   const ved=r.naVedomi;
   const vedBtn=ved
     ? `<button class="vedomi-btn on" data-act="vedomi" ${canVed?"":"disabled"} title="${canVed?'Klikni pro odemčení řádku':'Zamčeno ekonomkou'}">✓ Vzato 🔒</button><div class="stampline">${esc(ved.jmeno)} · ${fmtDate(ved.kdy)}</div>`
-    : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&(hasVal(r.odsouhlaseno)||isAdmin()))?"":"disabled"} title="${(!hasVal(r.odsouhlaseno)&&!isAdmin())?'Nejdřív odsouhlasená částka':(canVed?'':'Smí jen ekonomka/admin')}">Vzít na vědomí</button>`;
+    : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&(hasVal(r.odsouhlaseno)||isAdmin()||r.fakturujeSe===false))?"":"disabled"} title="${(!hasVal(r.odsouhlaseno)&&!isAdmin()&&r.fakturujeSe!==false)?'Nejdřív odsouhlasená částka (nebo Fakturuje se = Ne)':(canVed?'':'Smí jen ekonomka/admin')}">Vzít na vědomí</button>`;
   // Příznak „Bude změna" — příprava/stavbyvedoucí ho smí zaškrtnout I po vzetí na vědomí (zamčení),
   // aby upozornili, že se odsouhlasená částka ještě změní. Funguje nezávisle na zámku řádku.
   const canFlag=canRole(R_EDIT)&&(!monthLocked||isAdmin());
