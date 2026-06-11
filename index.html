@@ -75,6 +75,15 @@ tbody tr:hover td.stavba{background:#243044}
 tbody tr.rowlock{background:rgba(34,197,94,.05)}
 tbody tr.rowlock:hover{background:rgba(34,197,94,.09)}
 tbody tr.rowlock td.stavba{box-shadow:inset 3px 0 0 var(--done)}
+/* Jemné podbarvení řádku podle „Fakturuje se": zeleně = ano, červeně = ne (vč. zmrazené buňky) */
+#wrap tbody tr.fakt-ano{background:rgba(34,197,94,.09)}
+#wrap tbody tr.fakt-ano:hover{background:rgba(34,197,94,.15)}
+#wrap tr.fakt-ano td.stavba{background:#1b2e26}
+#wrap tbody tr.fakt-ano:hover td.stavba{background:#214036}
+#wrap tbody tr.fakt-ne{background:rgba(239,68,68,.09)}
+#wrap tbody tr.fakt-ne:hover{background:rgba(239,68,68,.15)}
+#wrap tr.fakt-ne td.stavba{background:#301f24}
+#wrap tbody tr.fakt-ne:hover td.stavba{background:#3d262c}
 .stavba .kod{font-weight:800;color:var(--accent);font-size:13px}
 .stavba .nazev{color:var(--txt);font-size:12.5px}
 .stavba-meta{color:var(--muted);font-size:11px;margin-top:1px}
@@ -97,10 +106,14 @@ td.num{text-align:right}
 .checktoggle.dis{opacity:.55;cursor:not-allowed}
 
 .badge{display:inline-block;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;text-transform:uppercase;white-space:normal;overflow-wrap:break-word}
-.b-none{background:var(--none);color:#cbd5e1}
+.b-none{background:#475569;color:#e2e8f0}
+.b-rozhodnout{background:#f59e0b;color:#3a2d05}
+.b-zadat{background:#06b6d4;color:#042b33}
+.b-odsouhl{background:#a855f7;color:#fff}
+.b-ekonomka{background:#3b82f6;color:#fff}
+.b-done{background:#22c55e;color:#04330f}
 .b-wait1{background:var(--wait1);color:#3a2d05}
 .b-wait2{background:var(--wait2);color:#fff}
-.b-done{background:var(--done);color:#04330f}
 .yesno{display:inline-flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
 .yesno.undecided{border-color:var(--wait1);box-shadow:0 0 0 2px rgba(245,158,11,.25)}
 .yn{border:none;background:var(--panel2);color:var(--muted);padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer}
@@ -117,8 +130,7 @@ tr.poznrow .addpozn{color:var(--muted);font-style:italic}
 .b-zmena{background:var(--nefakturovat);color:#fff;margin-top:6px}
 .flag-btn{display:block;margin-top:6px;background:var(--panel2);color:#fca5a5;border:1px solid #5b2330;border-radius:8px;padding:5px 9px;font-size:12px;white-space:nowrap}
 .flag-btn.on{background:rgba(239,68,68,.2);border-color:var(--nefakturovat);color:#fecaca;font-weight:700}
-tbody tr.flagrow{background:rgba(239,68,68,.07)}
-tbody tr.flagrow:hover{background:rgba(239,68,68,.11)}
+/* Příznak „Bude změna" má vlastní výrazný štítek; řádek podbarvuje Fakturuje se, ne tohle. */
 
 .empty{text-align:center;color:var(--muted);padding:50px 20px}
 .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;background:var(--accent);color:#06283d;border:none;border-radius:50px;padding:14px 20px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
@@ -518,11 +530,11 @@ function selectMonth(m){curMonth=m;DB.watchMonth(m,d=>{monthData=d;render();});}
 function radekStav(r){
   r=r||{};
   if(r.fakturujeSe===false)return{label:"Nefakturuje se",cls:"b-none"};
-  if(r.fakturujeSe==null)return{label:"Rozhodnout: fakturovat?",cls:"b-wait1"};
+  if(r.fakturujeSe==null)return{label:"Rozhodnout: fakturovat?",cls:"b-rozhodnout"};
   if(r.naVedomi)return{label:"Vzato na vědomí 🔒",cls:"b-done"};
-  if(hasVal(r.odsouhlaseno))return{label:"Čeká na ekonomku",cls:"b-wait2"};
-  if(hasVal(r.predpoklad))return{label:"Čeká na odsouhlasení",cls:"b-wait1"};
-  return{label:"Zadat částku",cls:"b-wait1"};
+  if(hasVal(r.odsouhlaseno))return{label:"Čeká na ekonomku",cls:"b-ekonomka"};
+  if(hasVal(r.predpoklad))return{label:"Čeká na odsouhlasení",cls:"b-odsouhl"};
+  return{label:"Zadat částku",cls:"b-zadat"};
 }
 
 function render(){
@@ -659,7 +671,8 @@ function rowHtml(x){
        ${stavbyLine}`
     : `<div class="stavba-cont">${objLine}</div>`;
   const poznRow=x.last?`<tr class="poznrow" data-id="${x.id}"><td colspan="${colspan}">${x.poznamka?`📝 ${esc(x.poznamka)}`:`<span class="addpozn">📝 přidat poznámku ke stavbě…</span>`}</td></tr>`:"";
-  return `<tr class="${rowLocked?'rowlock':''} ${!x.first?'nodivider':''} ${zmena?'flagrow':''}" data-id="${x.rowKey}" data-sid="${x.id}">
+  const faktClass=r.fakturujeSe===true?'fakt-ano':(r.fakturujeSe===false?'fakt-ne':'');
+  return `<tr class="${rowLocked?'rowlock':''} ${!x.first?'nodivider':''} ${zmena?'flagrow':''} ${faktClass}" data-id="${x.rowKey}" data-sid="${x.id}">
     <td class="stavba" data-l="Stavba">${stavbaCell}</td>
     ${cells}
     <td data-l="Ekonomka">${vedBtn}</td>
