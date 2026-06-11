@@ -229,6 +229,11 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
     <input id="search" class="grow" placeholder="🔎 hledat stavbu…">
     <label class="chk"><input type="checkbox" id="hideEmpty"> skrýt stavby bez částky</label>
     <label class="chk"><input type="checkbox" id="hideNefakt"> skrýt nefakturované (Ne)</label>
+    <select id="sortBy" class="chk" title="Řazení staveb">
+      <option value="">Řadit: pořadí</option>
+      <option value="kod">Řadit: číslo stavby</option>
+      <option value="nazev">Řadit: název</option>
+    </select>
   </div>
 
   <div id="wrap"></div>
@@ -575,7 +580,13 @@ function objednateleOf(s){ return String(s.objednatel||"").split("+").map(t=>t.t
 
 function rowsArr(){
   const out=[];
-  Object.entries(stavby).sort((a,b)=>(a[1].poradi||0)-(b[1].poradi||0)||(a[1].kod||"").localeCompare(b[1].kod))
+  const sortBy=(document.getElementById("sortBy")||{}).value||"";
+  const cmp=(a,b)=>{
+    if(sortBy==="kod")return String(a[1].kod||"").localeCompare(String(b[1].kod||""),"cs",{numeric:true});
+    if(sortBy==="nazev")return String(a[1].nazev||"").localeCompare(String(b[1].nazev||""),"cs",{sensitivity:"base"});
+    return (a[1].poradi||0)-(b[1].poradi||0)||String(a[1].kod||"").localeCompare(String(b[1].kod||""));
+  };
+  Object.entries(stavby).sort(cmp)
     .forEach(([id,s])=>{
       const objs=objednateleOf(s); const list=objs.length?objs:[null];   // 1 řádek i bez objednatele
       list.forEach((obj,idx)=>{
@@ -679,7 +690,7 @@ function rowHtml(x){
   const ved=r.naVedomi;
   const vedBtn=ved
     ? `<button class="vedomi-btn on" data-act="vedomi" ${canVed?"":"disabled"} title="${canVed?'Klikni pro odemčení řádku':'Zamčeno ekonomkou'}">✓ Vzato 🔒</button><div class="stampline">${esc(ved.jmeno)} · ${fmtDate(ved.kdy)}</div>`
-    : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&hasVal(r.odsouhlaseno))?"":"disabled"} title="${!hasVal(r.odsouhlaseno)?'Nejdřív odsouhlasená částka':(canVed?'':'Smí jen ekonomka')}">Vzít na vědomí</button>`;
+    : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&(hasVal(r.odsouhlaseno)||isAdmin()))?"":"disabled"} title="${(!hasVal(r.odsouhlaseno)&&!isAdmin())?'Nejdřív odsouhlasená částka':(canVed?'':'Smí jen ekonomka/admin')}">Vzít na vědomí</button>`;
   // Příznak „Bude změna" — příprava/stavbyvedoucí ho smí zaškrtnout I po vzetí na vědomí (zamčení),
   // aby upozornili, že se odsouhlasená částka ještě změní. Funguje nezávisle na zámku řádku.
   const canFlag=canRole(R_EDIT)&&(!monthLocked||isAdmin());
@@ -792,6 +803,7 @@ function bindUI(){
   document.getElementById("search").oninput=render;
   document.getElementById("hideEmpty").onchange=render;
   document.getElementById("hideNefakt").onchange=render;
+  document.getElementById("sortBy").onchange=render;
   document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
   document.getElementById("btnUsers").onclick=openUsersModal;
   document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());try{await DB.createMonth(nm);}catch(e){alert("Měsíc smí založit jen admin/ekonomka.");return;}monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
