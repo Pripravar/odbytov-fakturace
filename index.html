@@ -137,6 +137,9 @@ tr.poznrow .addpozn{color:var(--muted);font-style:italic}
 .vedomi-btn.on{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.5);color:#86efac;font-weight:700}
 .vedomi-btn:disabled{opacity:.55;cursor:default}
 .b-zmena{background:#fb923c;color:#3a2305;margin-top:6px;font-weight:800;box-shadow:0 0 0 2px rgba(251,146,60,.35)}
+.ved-pozn{margin-top:6px;font-size:12px;min-height:0;padding:5px 8px}
+.presun-btn{display:block;margin-top:6px;background:var(--panel2);color:#fcd34d;border:1px solid #5c4715;border-radius:8px;padding:5px 9px;font-size:12px;white-space:nowrap;cursor:pointer}
+.presun-btn.on{background:rgba(245,158,11,.2);border-color:#f59e0b;color:#fde68a;font-weight:700}
 .flag-btn{display:block;margin-top:6px;background:var(--panel2);color:#fca5a5;border:1px solid #5b2330;border-radius:8px;padding:5px 9px;font-size:12px;white-space:nowrap}
 .flag-btn.on{background:rgba(239,68,68,.2);border-color:var(--nefakturovat);color:#fecaca;font-weight:700}
 /* Příznak „Bude změna" má vlastní výrazný štítek; řádek podbarvuje Fakturuje se, ne tohle. */
@@ -235,6 +238,7 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
       <option value="nazev">Řadit: název</option>
     </select>
     <select id="filterResi" class="chk" title="Filtr podle řešitele / stavbyvedoucího"><option value="">Řeší: všichni</option></select>
+    <label class="chk"><input type="checkbox" id="showEnded"> zobrazit ukončené stavby</label>
   </div>
 
   <div id="wrap"></div>
@@ -603,7 +607,8 @@ function rowsArr(){
     if(sortBy==="nazev")return String(a[1].nazev||"").localeCompare(String(b[1].nazev||""),"cs",{sensitivity:"base"});
     return (a[1].poradi||0)-(b[1].poradi||0)||String(a[1].kod||"").localeCompare(String(b[1].kod||""));
   };
-  Object.entries(stavby).sort(cmp)
+  const showEnded=(document.getElementById("showEnded")||{}).checked;
+  Object.entries(stavby).filter(([id,s])=> showEnded || !(s.aktivniDo && curMonth>s.aktivniDo)).sort(cmp)
     .forEach(([id,s])=>{
       const objs=objednateleOf(s); const list=objs.length?objs:[null];   // 1 řádek i bez objednatele
       list.forEach((obj,idx)=>{
@@ -616,16 +621,21 @@ function rowsArr(){
 }
 function renderSummary(){
   const rows=rowsArr();
+  const oVal=x=>hasVal(x.r.odsouhlaseno)?+x.r.odsouhlaseno:0;
+  const inMonth=x=>!x.r.presunuto;   // přesunuté do dalšího měsíce se do tohoto měsíce nepočítají
   const sP=rows.reduce((a,x)=>a+(hasVal(x.r.predpoklad)?+x.r.predpoklad:0),0);
-  const sO=rows.reduce((a,x)=>a+(hasVal(x.r.odsouhlaseno)?+x.r.odsouhlaseno:0),0);
-  const sV=rows.reduce((a,x)=>a+(x.r.naVedomi&&hasVal(x.r.odsouhlaseno)?+x.r.odsouhlaseno:0),0);
+  const sO=rows.filter(inMonth).reduce((a,x)=>a+oVal(x),0);
+  const sOpresun=rows.filter(x=>!inMonth(x)).reduce((a,x)=>a+oVal(x),0);
+  const sV=rows.filter(x=>x.r.naVedomi&&inMonth(x)).reduce((a,x)=>a+oVal(x),0);
+  const sVpresun=rows.filter(x=>x.r.naVedomi&&!inMonth(x)).reduce((a,x)=>a+oVal(x),0);
   const cFakt=rows.filter(x=>x.r.fakturujeSe===true).length;
   const cNeroz=rows.filter(x=>x.r.fakturujeSe==null).length;
   const cVed=rows.filter(x=>x.r.naVedomi).length;
+  const presunLine=v=>v>0?`<div class="sub" style="color:#fbbf24">↪ přesun do dalšího měsíce: ${fmt(v)}</div>`:"";
   document.getElementById("summary").innerHTML=
     `<div class="sumcard"><h3>Předpoklad</h3><div class="big">${fmt(sP)}</div><div class="sub">${cFakt} fakturovat${cNeroz?` · <span style="color:var(--wait1)">${cNeroz} nerozhodnuto</span>`:""}</div></div>
-     <div class="sumcard"><h3>Odsouhlaseno</h3><div class="big">${fmt(sO)}</div></div>
-     <div class="sumcard"><h3>Vzato na vědomí</h3><div class="big" style="color:var(--done)">${fmt(sV)}</div><div class="sub">${cVed} z ${cFakt} hotovo</div></div>`;
+     <div class="sumcard"><h3>Odsouhlaseno (v měsíci)</h3><div class="big">${fmt(sO)}</div>${presunLine(sOpresun)}</div>
+     <div class="sumcard"><h3>Vzato na vědomí (v měsíci)</h3><div class="big" style="color:var(--done)">${fmt(sV)}</div><div class="sub">${cVed} z ${cFakt} hotovo</div>${presunLine(sVpresun)}</div>`;
 }
 
 /* ═══ Šířky sloupců (roztahovatelné jako v Excelu, uložené v localStorage) ═══ */
@@ -711,6 +721,16 @@ function rowHtml(x){
   const vedBtn=ved
     ? `<button class="vedomi-btn on" data-act="vedomi" ${canVed?"":"disabled"} title="${canVed?'Klikni pro odemčení řádku':'Zamčeno ekonomkou'}">✓ Vzato 🔒</button><div class="stampline">${esc(ved.jmeno)} · ${fmtDate(ved.kdy)}</div>`
     : `<button class="vedomi-btn" data-act="vedomi" ${(canVed&&(hasVal(r.odsouhlaseno)||isAdmin()||r.fakturujeSe===false))?"":"disabled"} title="${(!hasVal(r.odsouhlaseno)&&!isAdmin()&&r.fakturujeSe!==false)?'Nejdřív odsouhlasená částka (nebo Fakturuje se = Ne)':(canVed?'':'Smí jen ekonomka/admin')}">Vzít na vědomí</button>`;
+  // Poznámka ekonomky + přesun do dalšího měsíce (smí ekonomka/admin)
+  const ekoCanEdit=canRole(VEDOMI_ROLES)&&(!monthLocked||isAdmin());
+  const vedPozn=ekoCanEdit
+    ? `<input class="cellinput ved-pozn" data-f="naVedomiPozn" data-t="text" placeholder="pozn. ekonomky…" value="${esc(r.naVedomiPozn||"")}">`
+    : (r.naVedomiPozn?`<div class="stampline">📝 ${esc(r.naVedomiPozn)}</div>`:"");
+  const presunOn=!!r.presunuto;
+  const presunBtn=ekoCanEdit
+    ? `<button class="presun-btn ${presunOn?'on':''}" data-act="presun" title="Nestihlo uzávěrku – nepočítá se do tohoto měsíce">↪ ${presunOn?'přesunuto do dalšího měsíce':'přesun do dalšího měsíce'}</button>`
+    : (presunOn?`<div class="stampline" style="color:#fbbf24">↪ přesun do dalšího měsíce</div>`:"");
+  const ekoCell=`${vedBtn}${vedPozn}${presunBtn}`;
   // Příznak „Bude změna" — příprava/stavbyvedoucí ho smí zaškrtnout I po vzetí na vědomí (zamčení),
   // aby upozornili, že se odsouhlasená částka ještě změní. Funguje nezávisle na zámku řádku.
   const canFlag=canRole(R_EDIT)&&(!monthLocked||isAdmin());
@@ -731,7 +751,7 @@ function rowHtml(x){
     <td class="stavba" data-l="Stavba">${stavbaCell}</td>
     <td data-l="Stav"><span class="badge ${st.cls}">${st.label}</span>${flagBadge}${flagBtn}</td>
     ${cells}
-    <td data-l="Ekonomka">${vedBtn}</td>
+    <td data-l="Ekonomka">${ekoCell}</td>
   </tr>${poznRow}`;
 }
 
@@ -758,6 +778,8 @@ function wireTable(){
     if(vb)vb.onclick=()=>{const r=(monthData.radky||{})[id]||{};DB.setRadek(curMonth,id,{naVedomi:r.naVedomi?null:stamp()});};
     const fb=tr.querySelector('[data-act="zmena"]');
     if(fb)fb.onclick=()=>{const r=(monthData.radky||{})[id]||{};DB.setRadek(curMonth,id,{budeZmena:r.budeZmena?null:true,budeZmenaBy:r.budeZmena?null:stamp()});};
+    const pb=tr.querySelector('[data-act="presun"]');
+    if(pb)pb.onclick=()=>{const r=(monthData.radky||{})[id]||{};DB.setRadek(curMonth,id,{presunuto:r.presunuto?null:true,presunutoBy:r.presunuto?null:stamp()});};
   });
 }
 
@@ -792,7 +814,7 @@ function renderUsersList(){
 /* ═══ Modál stavby ═══ */
 function closeModal(){document.getElementById("modalRoot").innerHTML="";}
 function openStavbaModal(id){
-  const edit=!!id;const s=edit?stavby[id]:{kod:"",nazev:"",stavbyvedouci:"",objednatel:"",poznamka:""};
+  const edit=!!id;const s=edit?stavby[id]:{kod:"",nazev:"",stavbyvedouci:"",objednatel:"",poznamka:"",mailTDI:"",mailObj:"",mailFak:"",aktivniDo:""};
   document.getElementById("modalRoot").innerHTML=`
    <div class="modal-bg"><div class="modal">
      <h2>${edit?"Upravit stavbu":"Nová stavba"}</h2>
@@ -801,21 +823,28 @@ function openStavbaModal(id){
      <div class="field"><label>Stavbyvedoucí</label><input id="sStavby" value="${esc(s.stavbyvedouci||"")}" placeholder="jméno"></div>
      <div class="field"><label>Objednatel <span style="text-transform:none;color:#64748b">(víc oddělte „+", např. KSUS+město → 2 řádky)</span></label><input id="sObjednatel" value="${esc(s.objednatel||"")}" placeholder="ŘSD / KSUS+město"></div>
      <div class="field"><label>Poznámka ke stavbě</label><input id="sPozn" value="${esc(s.poznamka||"")}" placeholder="cokoliv důležitého ke stavbě"></div>
+     <div class="field"><label>✉️ Mail – potvrzení soupisu prací (TDI)</label><input id="sMailTDI" type="email" value="${esc(s.mailTDI||"")}" placeholder="tdi@…"></div>
+     <div class="field"><label>✉️ Mail – potvrzení fakturace (objednatel)</label><input id="sMailObj" type="email" value="${esc(s.mailObj||"")}" placeholder="objednatel@…"></div>
+     <div class="field"><label>✉️ Mail – zaslání potvrzené fakturace</label><input id="sMailFak" type="email" value="${esc(s.mailFak||"")}" placeholder="uctarna@…"></div>
+     <div class="field"><label>Fakturovat naposledy v měsíci <span style="text-transform:none;color:#64748b">(pak se přestane zobrazovat; prázdné = stále)</span></label>
+       <div style="display:flex;gap:8px;align-items:center"><input id="sAktivniDo" type="month" value="${esc(s.aktivniDo||"")}" style="flex:1">
+       <button class="btn" id="sUkoncit" type="button" title="Po tomto měsíci se už nebude generovat">Ukončit po ${esc(monthLabel(curMonth))}</button></div></div>
      <div class="modal-actions">
-       <div>${edit?`<button class="btn" id="sDel" style="color:#ef4444;border-color:#5b2330">Smazat</button>`:""}</div>
+       <div>${(edit&&isAdmin())?`<button class="btn" id="sDel" style="color:#ef4444;border-color:#5b2330">Smazat úplně</button>`:""}</div>
        <div style="display:flex;gap:10px"><button class="btn" id="sCancel">Zrušit</button><button class="btn btn-primary" id="sSave">${edit?"Uložit":"Přidat"}</button></div>
      </div></div></div>`;
   document.getElementById("sCancel").onclick=closeModal;
   document.querySelector(".modal-bg").onclick=e=>{if(e.target.classList.contains("modal-bg"))closeModal();};
+  document.getElementById("sUkoncit").onclick=()=>{document.getElementById("sAktivniDo").value=curMonth;};
   document.getElementById("sSave").onclick=()=>{
-    const kod=document.getElementById("sKod").value.trim(),nazev=document.getElementById("sNazev").value.trim();
-    const stavbyvedouci=document.getElementById("sStavby").value.trim(),objednatel=document.getElementById("sObjednatel").value.trim();
-    const poznamka=document.getElementById("sPozn").value.trim();
+    const g=i=>document.getElementById(i).value.trim();
+    const kod=g("sKod"),nazev=g("sNazev");
     if(!kod){alert("Vyplň kód stavby.");return;}
-    const data={kod,nazev,stavbyvedouci,objednatel,poznamka};
+    const data={kod,nazev,stavbyvedouci:g("sStavby"),objednatel:g("sObjednatel"),poznamka:g("sPozn"),
+      mailTDI:g("sMailTDI"),mailObj:g("sMailObj"),mailFak:g("sMailFak"),aktivniDo:g("sAktivniDo")};
     if(edit)DB.updateStavba(id,data);else DB.addStavba(data);closeModal();};
   const del=document.getElementById("sDel");
-  if(del)del.onclick=()=>{if(confirm("Smazat stavbu ze seznamu? (zmizí ve všech měsících)")){DB.removeStavba(id);closeModal();}};
+  if(del)del.onclick=()=>{if(confirm("SMAZAT ÚPLNĚ celou stavbu i s historií ve všech měsících? Nevratné.\n\nPro běžné ukončení radši použij pole „Fakturovat naposledy v měsíci“ – stavba zůstane v historii a jen se přestane zobrazovat.")){DB.removeStavba(id);closeModal();}};
 }
 
 function bindUI(){
@@ -825,6 +854,7 @@ function bindUI(){
   document.getElementById("hideNefakt").onchange=render;
   document.getElementById("sortBy").onchange=render;
   document.getElementById("filterResi").onchange=render;
+  document.getElementById("showEnded").onchange=render;
   document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
   document.getElementById("btnUsers").onclick=openUsersModal;
   document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());try{await DB.createMonth(nm);}catch(e){alert("Měsíc smí založit jen admin/ekonomka.");return;}monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
