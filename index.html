@@ -234,6 +234,7 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
       <option value="kod">Řadit: číslo stavby</option>
       <option value="nazev">Řadit: název</option>
     </select>
+    <select id="filterResi" class="chk" title="Filtr podle řešitele / stavbyvedoucího"><option value="">Řeší: všichni</option></select>
   </div>
 
   <div id="wrap"></div>
@@ -564,6 +565,7 @@ function render(){
   const lb=document.getElementById("lockBanner");
   if(monthData.zamceno){const z=monthData.zamkl||{};lb.innerHTML=`<div class="lockbanner">🔒 <b>Měsíc uzavřen</b> — jen čtení.${z.jmeno?` Uzavřel(a) ${esc(z.jmeno)} ${fmtDate(z.kdy)}.`:""}</div>`;}else lb.innerHTML="";
   renderFlagBanner();
+  buildResiFilter();
   renderSummary();renderTable();
 }
 function renderFlagBanner(){
@@ -577,6 +579,21 @@ function renderFlagBanner(){
 
 // Více objednatelů odděl znakem "+" (např. "KSUS+město") → každý objednatel = vlastní řádek.
 function objednateleOf(s){ return String(s.objednatel||"").split("+").map(t=>t.trim()).filter(Boolean); }
+// Rozdělí pole na jednotlivá jména (víc lidí oddělených / , ; +).
+const personsOf=t=>String(t||"").split(/[\/,;+]/).map(x=>x.trim()).filter(Boolean);
+// Seznam všech řešitelů (stavbyvedoucí + měsíční „Řeší"), pro filtr.
+function allPersons(){
+  const set=new Set();
+  Object.values(stavby).forEach(s=>personsOf(s.stavbyvedouci).forEach(p=>set.add(p)));
+  Object.values(monthData.radky||{}).forEach(r=>personsOf(r&&r.resi).forEach(p=>set.add(p)));
+  return [...set].sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}));
+}
+function buildResiFilter(){
+  const sel=document.getElementById("filterResi"); if(!sel)return; const cur=sel.value;
+  const persons=allPersons();
+  sel.innerHTML=`<option value="">Řeší: všichni</option>`+persons.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
+  sel.value=persons.includes(cur)?cur:"";
+}
 
 function rowsArr(){
   const out=[];
@@ -637,10 +654,13 @@ function renderTable(){
   const q=document.getElementById("search").value.toLowerCase();
   const hideEmpty=document.getElementById("hideEmpty").checked;
   const hideNefakt=document.getElementById("hideNefakt").checked;
+  const fResi=(document.getElementById("filterResi")||{}).value||"";
+  const fResiL=fResi.toLowerCase();
   let rows=rowsArr().filter(x=>{
     if(q&&!((x.kod+" "+x.nazev).toLowerCase().includes(q)))return false;
     if(hideEmpty&&!hasVal(x.r.predpoklad))return false;
     if(hideNefakt&&x.r.fakturujeSe===false)return false;
+    if(fResi){ const names=[...personsOf(x.stavbyvedouci),...personsOf(x.r.resi)].map(n=>n.toLowerCase()); if(!names.includes(fResiL))return false; }
     return true;});
   const wrap=document.getElementById("wrap");
   if(!Object.keys(stavby).length){wrap.innerHTML=`<div class="empty">Zatím žádné stavby. Přidej je přes „+ Stavba" vpravo dole.</div>`;return;}
@@ -804,6 +824,7 @@ function bindUI(){
   document.getElementById("hideEmpty").onchange=render;
   document.getElementById("hideNefakt").onchange=render;
   document.getElementById("sortBy").onchange=render;
+  document.getElementById("filterResi").onchange=render;
   document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
   document.getElementById("btnUsers").onclick=openUsersModal;
   document.getElementById("btnNewMonth").onclick=async()=>{const nm=nextMonthStr(monthsList[0]||curMonthStr());try{await DB.createMonth(nm);}catch(e){alert("Měsíc smí založit jen admin/ekonomka.");return;}monthsList=await DB.listMonths();curMonth=nm;buildMonthSel();selectMonth(nm);};
