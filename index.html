@@ -59,6 +59,10 @@ header select,.who{background:var(--panel2);color:var(--txt);border:1px solid va
 .chk{display:flex;align-items:center;gap:6px;color:var(--muted)}
 .toolbar .grow{flex:1;min-width:160px}
 .lockbanner{margin:0 14px 12px;background:#3a2d12;border:1px solid #5c4715;color:#fbbf24;border-radius:10px;padding:10px 14px;font-size:14px}
+.flagbanner{margin:0 14px 12px;background:#3a2b16;border:1px solid #fb923c;color:#fdba74;border-radius:10px;padding:9px 14px;font-size:13px;line-height:1.5}
+.flagbanner b{color:#fb923c}
+.flag-link{color:#fde68a;text-decoration:underline;font-weight:700;cursor:pointer}
+.flag-link:hover{color:#fff}
 
 #wrap{padding:0 14px 100px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px}
@@ -84,6 +88,11 @@ tbody tr.rowlock td.stavba{box-shadow:inset 3px 0 0 var(--done)}
 #wrap tbody tr.fakt-ne:hover{background:rgba(239,68,68,.15)}
 #wrap tr.fakt-ne td.stavba{background:#301f24}
 #wrap tbody tr.fakt-ne:hover td.stavba{background:#3d262c}
+/* „Bude změna" – výrazné a ODLIŠNÉ od nefakturuje (tlustý oranžový pruh + jantarové podbarvení) */
+#wrap tbody tr.flagrow{background:rgba(251,146,60,.14)}
+#wrap tbody tr.flagrow:hover{background:rgba(251,146,60,.2)}
+#wrap tr.flagrow td.stavba{background:#3a2b16;box-shadow:inset 5px 0 0 #fb923c}
+#wrap tbody tr.flagrow:hover td.stavba{background:#473419}
 .stavba .kod{font-weight:800;color:var(--accent);font-size:13px}
 .stavba .nazev{color:var(--txt);font-size:12.5px}
 .stavba-meta{color:var(--muted);font-size:11px;margin-top:1px}
@@ -127,7 +136,7 @@ tr.poznrow .addpozn{color:var(--muted);font-style:italic}
 .vedomi-btn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:8px;padding:7px 11px;font-size:13px;white-space:nowrap}
 .vedomi-btn.on{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.5);color:#86efac;font-weight:700}
 .vedomi-btn:disabled{opacity:.55;cursor:default}
-.b-zmena{background:var(--nefakturovat);color:#fff;margin-top:6px}
+.b-zmena{background:#fb923c;color:#3a2305;margin-top:6px;font-weight:800;box-shadow:0 0 0 2px rgba(251,146,60,.35)}
 .flag-btn{display:block;margin-top:6px;background:var(--panel2);color:#fca5a5;border:1px solid #5b2330;border-radius:8px;padding:5px 9px;font-size:12px;white-space:nowrap}
 .flag-btn.on{background:rgba(239,68,68,.2);border-color:var(--nefakturovat);color:#fecaca;font-weight:700}
 /* Příznak „Bude změna" má vlastní výrazný štítek; řádek podbarvuje Fakturuje se, ne tohle. */
@@ -213,6 +222,7 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
   </header>
 
   <div id="lockBanner"></div>
+  <div id="flagBanner"></div>
   <div class="summary" id="summary"></div>
 
   <div class="toolbar">
@@ -548,7 +558,16 @@ function render(){
   document.getElementById("fab").style.display=monthData.zamceno?"none":"";
   const lb=document.getElementById("lockBanner");
   if(monthData.zamceno){const z=monthData.zamkl||{};lb.innerHTML=`<div class="lockbanner">🔒 <b>Měsíc uzavřen</b> — jen čtení.${z.jmeno?` Uzavřel(a) ${esc(z.jmeno)} ${fmtDate(z.kdy)}.`:""}</div>`;}else lb.innerHTML="";
+  renderFlagBanner();
   renderSummary();renderTable();
+}
+function renderFlagBanner(){
+  const fb=document.getElementById("flagBanner");
+  const flagged=rowsArr().filter(x=>x.r.budeZmena);
+  if(!flagged.length){fb.innerHTML="";return;}
+  const items=flagged.map(x=>`<a href="#" class="flag-link" data-rk="${x.rowKey}">${esc(x.kod)}${x.objednatel?" ("+esc(x.objednatel)+")":""}</a>`).join(", ");
+  fb.innerHTML=`<div class="flagbanner">⚠️ <b>Pozor — u těchto staveb bude ještě změna:</b> ${items}</div>`;
+  fb.querySelectorAll(".flag-link").forEach(a=>a.onclick=e=>{e.preventDefault();const tr=document.querySelector('#wrap tr[data-id="'+a.dataset.rk+'"]');if(tr)tr.scrollIntoView({block:"center",behavior:"smooth"});});
 }
 
 // Více objednatelů odděl znakem "+" (např. "KSUS+město") → každý objednatel = vlastní řádek.
