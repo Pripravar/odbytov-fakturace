@@ -318,7 +318,7 @@ const COLUMNS = [
   { key:"podpisy",     label:"Podpisy soupisů – termín",type:"date",   roles:R_EDIT },
   { key:"podpisyPozn", label:"Podpisy soupisů – pozn.", type:"note",   roles:R_EDIT, ph:"poznámka" },
   { key:"esticon",     label:"V ESticonu",              type:"yesno",  roles:R_EDIT_EKO },
-  { key:"poslanoPosta",label:"Posláno na posta@rsd.cz", type:"yesno",  roles:R_EDIT_EKO },
+  { key:"poslanoPosta",label:"Faktura odeslána objednateli", type:"yesno", roles:R_EDIT_EKO, lockExempt:true },
   { key:"odesilatel",  label:"Fakturaci posílá",        type:"text",   roles:R_EDIT_EKO, ph:"jméno" },
 ];
 const VEDOMI_ROLES = ["ekonomka","admin"];   // kdo bere na vědomí a zamyká/odemyká řádek
@@ -650,7 +650,11 @@ function rowHtml(x){
   const monthLocked=monthData.zamceno;
   const rowLocked=!!r.naVedomi;               // ekonomka vzala na vědomí → řádek zamčen
   const baseDisabled=(monthLocked||rowLocked)&&!isAdmin();  // admin smí vše; + per-sloupec role
-  const cells=COLUMNS.map(c=>cellHtml(c,r,baseDisabled||!canRole(c.roles))).join("");
+  const cells=COLUMNS.map(c=>{
+    // lockExempt sloupce (faktura odeslána) jdou měnit i po zamčení řádku – jen ne po uzávěrce měsíce.
+    const dis = c.lockExempt ? ((monthLocked&&!isAdmin())||!canRole(c.roles)) : (baseDisabled||!canRole(c.roles));
+    return cellHtml(c,r,dis);
+  }).join("");
   const canVed=canRole(VEDOMI_ROLES)&&(!monthLocked||isAdmin());
   const ved=r.naVedomi;
   const vedBtn=ved
