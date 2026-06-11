@@ -94,7 +94,7 @@ tbody tr.rowlock td.stavba{box-shadow:inset 3px 0 0 var(--done)}
 #wrap tr.flagrow td.stavba{background:#3a2b16;box-shadow:inset 5px 0 0 #fb923c}
 #wrap tbody tr.flagrow:hover td.stavba{background:#473419}
 .stavba .kod{font-weight:800;color:var(--accent);font-size:13px}
-.stavba .nazev{color:var(--txt);font-size:12.5px}
+.stavba .nazev{color:var(--txt);font-size:23px;font-weight:600;line-height:1.15;display:block;margin-top:1px}
 .stavba-meta{color:var(--muted);font-size:11px;margin-top:1px}
 .stavba-meta b{color:#cbd5e1;font-weight:600}
 .obj-line{color:var(--muted);font-size:11px;margin-top:2px}
@@ -601,9 +601,9 @@ function renderSummary(){
 }
 
 /* ═══ Šířky sloupců (roztahovatelné jako v Excelu, uložené v localStorage) ═══ */
-const COLDEFS=[{id:"stavba",def:240},
+const COLDEFS=[{id:"stavba",def:300},{id:"stav",def:180},
   ...COLUMNS.map(c=>({id:c.key,def:({amount:130,text:150,date:150,check:120,yesno:120}[c.type]||140)})),
-  {id:"ekonomka",def:160},{id:"stav",def:180}];
+  {id:"ekonomka",def:160}];
 let colW=(()=>{try{return JSON.parse(localStorage.getItem("odbyt_colw"))||{};}catch(e){return{};}})();
 const saveColW=()=>localStorage.setItem("odbyt_colw",JSON.stringify(colW));
 const colWidth=(id,def)=>colW[id]||def;
@@ -636,8 +636,9 @@ function renderTable(){
   if(!rows.length){wrap.innerHTML=`<div class="empty">Nic neodpovídá filtru.</div>`;return;}
   const rsz=`<span class="resizer"></span>`;
   const head=`<th data-col="stavba" title="Stavba">Stavba${rsz}</th>`+
+    `<th data-col="stav" title="Stav">Stav${rsz}</th>`+
     COLUMNS.map(c=>`<th data-col="${c.key}" class="${c.type==='amount'?'num':''}" title="${esc(c.label)}">${esc(c.label)}${rsz}</th>`).join("")+
-    `<th data-col="ekonomka" title="Ekonomka">Ekonomka${rsz}</th><th data-col="stav" title="Stav">Stav${rsz}</th>`;
+    `<th data-col="ekonomka" title="Ekonomka">Ekonomka${rsz}</th>`;
   wrap.innerHTML=`<table style="table-layout:fixed;min-width:100%">${buildColgroup()}<thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`;
   wireTable();wireResizers();
 }
@@ -697,9 +698,9 @@ function rowHtml(x){
   const faktClass=r.fakturujeSe===true?'fakt-ano':(r.fakturujeSe===false?'fakt-ne':'');
   return `<tr class="${rowLocked?'rowlock':''} ${!x.first?'nodivider':''} ${zmena?'flagrow':''} ${faktClass}" data-id="${x.rowKey}" data-sid="${x.id}">
     <td class="stavba" data-l="Stavba">${stavbaCell}</td>
+    <td data-l="Stav"><span class="badge ${st.cls}">${st.label}</span>${flagBadge}${flagBtn}</td>
     ${cells}
     <td data-l="Ekonomka">${vedBtn}</td>
-    <td data-l="Stav"><span class="badge ${st.cls}">${st.label}</span>${flagBadge}${flagBtn}</td>
   </tr>${poznRow}`;
 }
 
