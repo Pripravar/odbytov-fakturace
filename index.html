@@ -238,6 +238,16 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
       <option value="nazev">Řadit: název</option>
     </select>
     <select id="filterResi" class="chk" title="Filtr podle řešitele / stavbyvedoucího"><option value="">Řeší: všichni</option></select>
+    <select id="filterOdes" class="chk" title="Filtr podle toho, kdo posílá fakturaci"><option value="">Posílá: všichni</option></select>
+    <select id="filterStav" class="chk" title="Filtr podle stavu">
+      <option value="">Stav: vše</option>
+      <option value="rozhodnout">Rozhodnout: fakturovat?</option>
+      <option value="zadat">Zadat částku</option>
+      <option value="odsouhlaseni">Čeká na odsouhlasení</option>
+      <option value="ekonomka">Čeká na ekonomku</option>
+      <option value="vzato">Vzato na vědomí</option>
+      <option value="nefakturuje">Nefakturuje se</option>
+    </select>
     <label class="chk"><input type="checkbox" id="showEnded"> zobrazit ukončené stavby</label>
   </div>
 
@@ -549,12 +559,12 @@ function selectMonth(m){curMonth=m;DB.watchMonth(m,d=>{monthData=d;render();});}
 
 function radekStav(r){
   r=r||{};
-  if(r.fakturujeSe===false)return{label:"Nefakturuje se",cls:"b-none"};
-  if(r.fakturujeSe==null)return{label:"Rozhodnout: fakturovat?",cls:"b-rozhodnout"};
-  if(r.naVedomi)return{label:"Vzato na vědomí 🔒",cls:"b-done"};
-  if(hasVal(r.odsouhlaseno))return{label:"Čeká na ekonomku",cls:"b-ekonomka"};
-  if(hasVal(r.predpoklad))return{label:"Čeká na odsouhlasení",cls:"b-odsouhl"};
-  return{label:"Zadat částku",cls:"b-zadat"};
+  if(r.fakturujeSe===false)return{label:"Nefakturuje se",cls:"b-none",key:"nefakturuje"};
+  if(r.fakturujeSe==null)return{label:"Rozhodnout: fakturovat?",cls:"b-rozhodnout",key:"rozhodnout"};
+  if(r.naVedomi)return{label:"Vzato na vědomí 🔒",cls:"b-done",key:"vzato"};
+  if(hasVal(r.odsouhlaseno))return{label:"Čeká na ekonomku",cls:"b-ekonomka",key:"ekonomka"};
+  if(hasVal(r.predpoklad))return{label:"Čeká na odsouhlasení",cls:"b-odsouhl",key:"odsouhlaseni"};
+  return{label:"Zadat částku",cls:"b-zadat",key:"zadat"};
 }
 
 function render(){
@@ -569,7 +579,7 @@ function render(){
   const lb=document.getElementById("lockBanner");
   if(monthData.zamceno){const z=monthData.zamkl||{};lb.innerHTML=`<div class="lockbanner">🔒 <b>Měsíc uzavřen</b> — jen čtení.${z.jmeno?` Uzavřel(a) ${esc(z.jmeno)} ${fmtDate(z.kdy)}.`:""}</div>`;}else lb.innerHTML="";
   renderFlagBanner();
-  buildResiFilter();
+  buildResiFilter();buildOdesFilter();
   renderSummary();renderTable();
 }
 function renderFlagBanner(){
@@ -596,6 +606,14 @@ function buildResiFilter(){
   const sel=document.getElementById("filterResi"); if(!sel)return; const cur=sel.value;
   const persons=allPersons();
   sel.innerHTML=`<option value="">Řeší: všichni</option>`+persons.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
+  sel.value=persons.includes(cur)?cur:"";
+}
+function buildOdesFilter(){
+  const sel=document.getElementById("filterOdes"); if(!sel)return; const cur=sel.value;
+  const set=new Set();
+  Object.values(monthData.radky||{}).forEach(r=>personsOf(r&&r.odesilatel).forEach(p=>set.add(p)));
+  const persons=[...set].sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}));
+  sel.innerHTML=`<option value="">Posílá: všichni</option>`+persons.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
   sel.value=persons.includes(cur)?cur:"";
 }
 
@@ -666,11 +684,15 @@ function renderTable(){
   const hideNefakt=document.getElementById("hideNefakt").checked;
   const fResi=(document.getElementById("filterResi")||{}).value||"";
   const fResiL=fResi.toLowerCase();
+  const fOdes=(document.getElementById("filterOdes")||{}).value||""; const fOdesL=fOdes.toLowerCase();
+  const fStav=(document.getElementById("filterStav")||{}).value||"";
   let rows=rowsArr().filter(x=>{
     if(q&&!((x.kod+" "+x.nazev).toLowerCase().includes(q)))return false;
     if(hideEmpty&&!hasVal(x.r.predpoklad))return false;
     if(hideNefakt&&x.r.fakturujeSe===false)return false;
     if(fResi){ const names=[...personsOf(x.stavbyvedouci),...personsOf(x.r.resi)].map(n=>n.toLowerCase()); if(!names.includes(fResiL))return false; }
+    if(fOdes){ const names=personsOf(x.r.odesilatel).map(n=>n.toLowerCase()); if(!names.includes(fOdesL))return false; }
+    if(fStav&&radekStav(x.r).key!==fStav)return false;
     return true;});
   const wrap=document.getElementById("wrap");
   if(!Object.keys(stavby).length){wrap.innerHTML=`<div class="empty">Zatím žádné stavby. Přidej je přes „+ Stavba" vpravo dole.</div>`;return;}
@@ -854,6 +876,8 @@ function bindUI(){
   document.getElementById("hideNefakt").onchange=render;
   document.getElementById("sortBy").onchange=render;
   document.getElementById("filterResi").onchange=render;
+  document.getElementById("filterOdes").onchange=render;
+  document.getElementById("filterStav").onchange=render;
   document.getElementById("showEnded").onchange=render;
   document.getElementById("monthSel").onchange=e=>selectMonth(e.target.value);
   document.getElementById("btnUsers").onclick=openUsersModal;
