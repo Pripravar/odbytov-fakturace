@@ -62,11 +62,11 @@ header select,.who{background:var(--panel2);color:var(--txt);border:1px solid va
 
 #wrap{padding:0 14px 100px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px}
-thead th{background:var(--panel2);text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:10px 14px 10px 12px;font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:break-word;position:relative;vertical-align:top}
+thead th{background:var(--panel2);text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;padding:7px 12px 7px 10px;font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:break-word;position:relative;vertical-align:top}
 thead th.num{text-align:right}
 .resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
 .resizer:hover,.resizer.drag{background:var(--accent)}
-tbody td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+tbody td{padding:6px 9px;border-top:1px solid var(--line);vertical-align:top}
 /* Zmrazený první sloupec „Stavba" – při posunu do boku zůstává vidět, na které stavbě jsi */
 #wrap thead th[data-col="stavba"]{position:sticky;left:0;z-index:6;background:var(--panel2);border-right:2px solid var(--line)}
 #wrap td.stavba{position:sticky;left:0;z-index:4;background:var(--panel);border-right:2px solid var(--line)}
@@ -75,19 +75,19 @@ tbody tr:hover td.stavba{background:#243044}
 tbody tr.rowlock{background:rgba(34,197,94,.05)}
 tbody tr.rowlock:hover{background:rgba(34,197,94,.09)}
 tbody tr.rowlock td.stavba{box-shadow:inset 3px 0 0 var(--done)}
-.stavba .kod{font-weight:800;color:var(--accent)}
-.stavba .nazev{color:var(--txt);font-size:14px}
-.stavba-meta{color:var(--muted);font-size:12px;margin-top:2px}
+.stavba .kod{font-weight:800;color:var(--accent);font-size:13px}
+.stavba .nazev{color:var(--txt);font-size:12.5px}
+.stavba-meta{color:var(--muted);font-size:11px;margin-top:1px}
 .stavba-meta b{color:#cbd5e1;font-weight:600}
-.obj-line{color:var(--muted);font-size:12px;margin-top:3px}
+.obj-line{color:var(--muted);font-size:11px;margin-top:2px}
 .obj-line b{color:var(--accent);font-weight:700}
 .stavba-cont{padding-left:6px}
 tbody tr.nodivider td{border-top:none}
 tbody tr.nodivider td.stavba{box-shadow:inset 2px 0 0 var(--accent)}
 .stavba-pozn{color:#fbbf24;font-size:12px;margin-top:3px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td.num{text-align:right}
-.cellinput{width:100%;max-width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.amt-input{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.cellinput{width:100%;max-width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:13px}
+.amt-input{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .note-input{resize:none;overflow:hidden;min-height:38px;line-height:1.35;white-space:pre-wrap;word-break:break-word;font-size:13px}
 .cellinput::placeholder{color:#64748b;font-weight:400}
 .cellinput:disabled{opacity:.55;cursor:not-allowed}
@@ -103,7 +103,7 @@ td.num{text-align:right}
 .b-done{background:var(--done);color:#04330f}
 .yesno{display:inline-flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
 .yesno.undecided{border-color:var(--wait1);box-shadow:0 0 0 2px rgba(245,158,11,.25)}
-.yn{border:none;background:var(--panel2);color:var(--muted);padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.yn{border:none;background:var(--panel2);color:var(--muted);padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer}
 .yn+.yn{border-left:1px solid var(--line)}
 .yn.yn-yes.on{background:var(--done);color:#04330f}
 .yn.yn-no.on{background:var(--nefakturovat,#ef4444);color:#fff}
@@ -487,8 +487,10 @@ async function afterLogin(){
 }
 
 /* ═══ Helpers ═══ */
-const fmt=n=>(Number(n)||0).toLocaleString("cs-CZ")+" Kč";
-const fmtNum=n=>(Number(n)||0).toLocaleString("cs-CZ");   // 1 250 000 (po tisících, bez Kč)
+const fmt=n=>(Number(n)||0).toLocaleString("cs-CZ",{minimumFractionDigits:2,maximumFractionDigits:2})+" Kč";
+const fmtNum=n=>(Number(n)||0).toLocaleString("cs-CZ",{minimumFractionDigits:2,maximumFractionDigits:2}); // 1 250 000,00
+// Parsuje částku z textu: zvládne mezery (i pevné), čárku i tečku jako desetinnou; 2 desetinná místa.
+const parseAmount=s=>{ if(s==null)return null; let t=String(s).replace(/[\s\u00a0\u202f]/g,"").replace(",",".").replace(/[^\d.\-]/g,""); if(t==="")return null; const n=Number(t); return isNaN(n)?null:Math.round(n*100)/100; };
 const autoGrow=el=>{el.style.height="auto";el.style.height=(el.scrollHeight+2)+"px";};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtDate=iso=>{if(!iso)return"";const d=new Date(iso);return d.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})+" "+d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});};
@@ -614,7 +616,7 @@ function cellHtml(c,r,disabled){
   const st=stampObj?`<div class="stampline" title="${esc(stampObj.jmeno)} · ${fmtDate(stampObj.kdy)}">${esc(stampObj.jmeno)} · ${fmtDate(stampObj.kdy)}</div>`:"";
   const dis=disabled?"disabled":"";
   if(c.type==="amount")
-    return `<td class="num" data-l="${esc(c.label)}"><input class="cellinput amt-input" data-f="${c.key}" data-t="amount" inputmode="numeric" placeholder="—" value="${r[c.key]!=null?fmtNum(r[c.key]):""}" ${dis}>${st}</td>`;
+    return `<td class="num" data-l="${esc(c.label)}"><input class="cellinput amt-input" data-f="${c.key}" data-t="amount" inputmode="decimal" placeholder="—" value="${r[c.key]!=null?fmtNum(r[c.key]):""}" ${dis}>${st}</td>`;
   if(c.type==="yesno"){const v=r[c.key];
     return `<td data-l="${esc(c.label)}"><div class="yesno ${(v==null&&c.req)?'undecided':''}">
       <button class="yn yn-yes ${v===true?'on':''}" data-f="${c.key}" data-yn="yes" ${dis}>Ano</button>
@@ -672,7 +674,7 @@ function wireTable(){
       if(inp.dataset.t==="note"){ autoGrow(inp); inp.addEventListener("input",()=>autoGrow(inp)); }
       inp.addEventListener("change",()=>{
         const f=inp.dataset.f,t=inp.dataset.t;let val;
-        if(t==="amount"){const dg=inp.value.replace(/[^\d-]/g,"");val=dg===""?null:Number(dg);}
+        if(t==="amount"){val=parseAmount(inp.value);}
         else if(t==="check")val=inp.checked?true:null;
         else val=inp.value===""?null:inp.value;
         const patch={[f]:val};patch[f+"By"]=val==null?null:stamp();
