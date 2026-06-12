@@ -41,6 +41,7 @@ input,select{font-family:inherit;font-size:15px}
 header{position:sticky;top:0;z-index:50;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 header .title{font-weight:700;font-size:17px;margin-right:auto;display:flex;align-items:center;gap:8px}
 header select,.who{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+#monthSel{font-size:21px;font-weight:800;color:var(--accent);padding:6px 12px;border:2px solid var(--accent);border-radius:10px}
 .who{display:flex;align-items:center;gap:8px;font-size:13px}
 .who .role-badge{background:var(--accent);color:#06283d;border-radius:6px;padding:1px 7px;font-weight:700;font-size:11px;text-transform:uppercase}
 .btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:14px}
@@ -64,15 +65,24 @@ header select,.who{background:var(--panel2);color:var(--txt);border:1px solid va
 .flag-link{color:#fde68a;text-decoration:underline;font-weight:700;cursor:pointer}
 .flag-link:hover{color:#fff}
 
-#wrap{padding:0 14px 100px;overflow-x:auto}
+#app{display:block}
+#app.hidden{display:none}
+#wrap{padding:0 14px 80px;overflow:auto}
+/* Desktop: tabulka je vlastní posuvná oblast vyplňující obrazovku → vodorovný posuvník je
+   pořád dole na očích (i v malém okně), hlavička zůstává nahoře. */
+@media(min-width:681px){
+  #app:not(.hidden){display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  #app>header,#lockBanner,#flagBanner,.summary,.toolbar{flex:0 0 auto}
+  #wrap{flex:1 1 auto;min-height:0;padding-bottom:14px}
+}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px}
-thead th{background:var(--panel2);text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;padding:7px 12px 7px 10px;font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:break-word;position:relative;vertical-align:top}
+thead th{background:var(--panel2);text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;padding:7px 12px 7px 10px;font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:break-word;position:sticky;top:0;z-index:5;vertical-align:top}
 thead th.num{text-align:right}
 .resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
 .resizer:hover,.resizer.drag{background:var(--accent)}
 tbody td{padding:6px 9px;border-top:1px solid var(--line);vertical-align:top}
 /* Zmrazený první sloupec „Stavba" – při posunu do boku zůstává vidět, na které stavbě jsi */
-#wrap thead th[data-col="stavba"]{position:sticky;left:0;z-index:6;background:var(--panel2);border-right:2px solid var(--line)}
+#wrap thead th[data-col="stavba"]{position:sticky;left:0;top:0;z-index:7;background:var(--panel2);border-right:2px solid var(--line)}
 #wrap td.stavba{position:sticky;left:0;z-index:4;background:var(--panel);border-right:2px solid var(--line)}
 tbody tr:hover{background:#21304a}
 tbody tr:hover td.stavba{background:#243044}
@@ -213,7 +223,7 @@ button,.yn,.vedomi-btn,.flag-btn{touch-action:manipulation}
   <div class="gate-err" id="gateErr"></div>
 </div>
 
-<div id="app" style="display:none">
+<div id="app" class="hidden">
   <header>
     <div class="title">🧾 Odbytová fakturace</div>
     <select id="monthSel" title="Měsíc"></select>
@@ -443,7 +453,7 @@ function roleFor(uid,email,profiles){
 }
 async function startAuth(){
   if(DEMO){
-    document.getElementById("gate").style.display="none";document.getElementById("app").style.display="block";
+    document.getElementById("gate").style.display="none";document.getElementById("app").classList.remove("hidden");
     document.getElementById("demoFlag").innerHTML='<div class="demo-flag">DEMO mód (localStorage) — data jen v tomto prohlížeči</div>';
     me={uid:"demo",jmeno:"Demo uživatel",email:"demo@local",role:"admin"};await afterLogin();return;
   }
@@ -490,11 +500,11 @@ async function startAuth(){
     catch(e){gateErr("Špatný nebo prošlý kód.");}
   };
   auth.onAuthStateChanged(async user=>{
-    if(!user){document.getElementById("gate").style.display="flex";document.getElementById("app").style.display="none";return;}
+    if(!user){document.getElementById("gate").style.display="flex";document.getElementById("app").classList.add("hidden");return;}
     const prof=(await fdb.ref("fakturace/uzivatele").get()).val()||{};
     const existing=prof[user.uid]||{};
     const isPhone=!!user.phoneNumber && !user.email;
-    document.getElementById("gate").style.display="none";document.getElementById("app").style.display="block";
+    document.getElementById("gate").style.display="none";document.getElementById("app").classList.remove("hidden");
     // jméno: Google → displayName; telefon → uložené jméno, jinak se na něj zeptáme (povinné)
     let jmeno=user.displayName||user.email||((existing.jmeno&&existing.jmeno!==user.phoneNumber)?existing.jmeno:"");
     if(isPhone && !jmeno){ jmeno=await askName(); }
